@@ -553,13 +553,76 @@ CREATE TABLE settings (
 - AI プロバイダーの設定（API キー、選択中のプロバイダー、モデル名）
 - アプリケーション設定（テーマ、言語など）
 
-**データ例**:
+### 保存されている設定キー一覧
+
+現在、settings テーブルに保存されている主なキー：
+
+| key | 説明 | 値の型 |
+|-----|------|--------|
+| `'ai'` | すべてのAI設定を含むオブジェクト | `AISettings` オブジェクト (JSON) |
+
+**`AISettings` オブジェクトの構造**:
+
+```typescript
+{
+  default_provider: 'anthropic' | 'openai' | 'google',
+  openai_api_key: string,
+  openai_model: string,
+  anthropic_api_key: string,
+  anthropic_model: string,
+  google_api_key: string,
+  google_model: string
+}
+```
+
+**実際のデータ例**:
 
 | key | value (JSON) |
 |-----|-------------|
-| `aiProvider` | `"anthropic"` |
-| `anthropic.apiKey` | `"sk-ant-..."` |
-| `anthropic.model` | `"claude-3-5-sonnet-20241022"` |
+| `'ai'` | `{"default_provider":"google","google_api_key":"AIzaSy...","google_model":"gemini-2.5-pro"}` |
+
+**重要な注意点**:
+- **設定されたプロバイダーの情報のみが保存されます** - 上記の例では Google のみ設定されているため、`openai_*` や `anthropic_*` フィールドは含まれていません
+- 複数のプロバイダーを設定した場合、それらのフィールドがすべて1つの JSON オブジェクトに含まれます
+- すべてのフィールドはオプショナル（TypeScript の型定義で `?` 付き）のため、未設定のフィールドは JSON に含まれません
+
+**複数プロバイダー設定時の例**:
+```json
+{
+  "default_provider": "anthropic",
+  "anthropic_api_key": "sk-ant-...",
+  "anthropic_model": "claude-3-5-sonnet-20241022",
+  "openai_api_key": "sk-...",
+  "openai_model": "gpt-4o",
+  "google_api_key": "AIzaSy...",
+  "google_model": "gemini-2.5-flash"
+}
+```
+
+つまり、**すべてのAI関連設定が1つのキー (`'ai'`) にまとめて保存**されています。
+
+**コード内での取得例**:
+
+```typescript
+import { getSetting } from '@backend/settings'
+import type { AISettings } from '@common/types'
+
+// AI設定全体を取得
+const aiSettings = await getSetting<AISettings>('ai')
+
+// 使用例
+const provider = aiSettings.default_provider        // 'anthropic'
+const apiKey = aiSettings.anthropic_api_key        // 'sk-ant-...'
+const model = aiSettings.anthropic_model           // 'claude-3-5-sonnet-20241022'
+```
+
+**Drizzle Studio で確認**:
+
+```bash
+pnpm run drizzle-kit studio
+```
+
+ブラウザで http://localhost:4983 を開き、settings テーブルを見ると `key='ai'` の行が確認できます。
 
 ### マイグレーション管理
 
