@@ -1,36 +1,83 @@
-import log from 'electron-log'
-import path from 'path'
-import { getUserDataPath } from './user-data-path'
+/**
+ * Backend Process Logger
+ *
+ * This logger sends all logs to the Main Process via IPC for unified logging.
+ * All logs are written to a single app.log file by the Main Process.
+ */
 
-const isDev = process.env.NODE_ENV === 'development'
+type LogLevel = 'error' | 'warn' | 'info' | 'debug'
 
-function getLogFolder(): string {
-  const userDataPath = getUserDataPath()
-  return path.join(userDataPath, 'logs')
+interface LogEntry {
+  level: LogLevel
+  scope: string
+  message: string
+  data?: unknown
+  timestamp: string
 }
 
-function initLogger(): void {
-  const logFolder = getLogFolder()
+class BackendLogger {
+  private scope: string
 
-  // Configure file transport to route to backend.log
-  log.transports.file.resolvePathFn = () => {
-    return path.join(logFolder, 'backend.log')
+  constructor(scope: string = 'backend') {
+    this.scope = scope
   }
 
-  // Set log levels and file transport options to match main process
-  log.transports.console.level = isDev ? 'debug' : 'error'
-  log.transports.file.level = isDev ? 'debug' : 'info'
-  log.transports.file.maxSize = 5 * 1024 * 1024 // 5MB
-
-  // Error handling
-  log.errorHandler.startCatching({
-    showDialog: false, // No dialogs in backend process
-    onError: ({ error, processType }) => {
-      log.error('Backend process error:', { processType, error })
+  /**
+   * Send log to Main Process via IPC
+   */
+  private sendToMain(level: LogLevel, message: string, data?: unknown): void {
+    const logEntry: LogEntry = {
+      level,
+      scope: this.scope,
+      message,
+      data,
+      timestamp: new Date().toISOString()
     }
-  })
+
+    // Send to Main Process via IPC
+    if (process.send) {
+      process.send({
+        type: 'log',
+        payload: logEntry
+      })
+    }
+
+    // Also log to console for development
+    if (process.env.NODE_ENV === 'development') {
+      const consoleMethod = level === 'debug' ? 'log' : level
+      const prefix = `[${this.scope}]`
+      if (data) {
+        console[consoleMethod](prefix, message, data)
+      } else {
+        console[consoleMethod](prefix, message)
+      }
+    }
+  }
+
+  error(message: string, data?: unknown): void {
+    this.sendToMain('error', message, data)
+  }
+
+  warn(message: string, data?: unknown): void {
+    this.sendToMain('warn', message, data)
+  }
+
+  info(message: string, data?: unknown): void {
+    this.sendToMain('info', message, data)
+  }
+
+  debug(message: string, data?: unknown): void {
+    this.sendToMain('debug', message, data)
+  }
+
+  /**
+   * Create a child logger with a sub-scope
+   */
+  child(subScope: string): BackendLogger {
+    return new BackendLogger(`${this.scope}:${subScope}`)
+  }
 }
 
-initLogger()
-export const logger = log.scope('backend')
+const logger = new BackendLogger('backend')
 export default logger
+export { BackendLogger }

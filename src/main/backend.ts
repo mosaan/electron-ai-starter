@@ -2,6 +2,7 @@ import { utilityProcess, MessageChannelMain, UtilityProcess, WebContents } from 
 import logger from './logger'
 import { getBasePath } from './paths'
 import backendPath from '../backend/index?modulePath'
+import log from 'electron-log/main'
 
 export class Backend {
   private _process: UtilityProcess
@@ -10,6 +11,31 @@ export class Backend {
   constructor() {
     const userDataPath = getBasePath()
     this._process = utilityProcess.fork(backendPath, ['--user-data-path', userDataPath])
+
+    // Setup listener for logs from backend process
+    this._setupLogHandler()
+  }
+
+  /**
+   * Setup handler to receive logs from backend process
+   */
+  private _setupLogHandler(): void {
+    this._process.on('message', (message) => {
+      // Handle log messages from backend
+      if (message.type === 'log') {
+        const { level, scope, message: logMessage, data } = message.payload
+
+        // Create a scoped logger
+        const backendLogger = log.scope(scope || 'backend')
+
+        // Log with appropriate level
+        if (data && Object.keys(data).length > 0) {
+          backendLogger[level](logMessage, data)
+        } else {
+          backendLogger[level](logMessage)
+        }
+      }
+    })
   }
 
   connectRenderer(renderer: WebContents): void {

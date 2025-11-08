@@ -127,21 +127,28 @@ The configuration uses New York style with Lucide icons and neutral base color.
 
 ### Logging Configuration
 
-- **electron-log** for unified logging across all processes
-- **Environment-aware paths**: Development (`./tmp/logs/`) vs Production (userData/logs/)
-- **Separate log files**:
-  - `main.log` - Main process logs (app lifecycle, IPC)
-  - `backend.log` - Backend process logs (AI, database, settings)
-  - `preload.log` - Preload script logs
-  - `renderer.log` - Renderer process logs (UI, React components)
-- **Features**: 
+- **Unified logging system** - All three processes (Main, Backend, Renderer) log to a single `app.log` file
+- **Architecture**: Main Process acts as a log hub, receiving logs from Backend and Renderer via IPC
+- **Log file location**:
+  - Development: `./tmp/logs/app.log`
+  - Production: userData directory `/logs/app.log`
+- **Log format**: `[timestamp] [level] [scope] message`
+  - Example: `[2025-11-08 10:23:45.123] [info] [backend:ai] AI request started { provider: 'anthropic' }`
+- **Features**:
+  - Unified timeline across all processes for easier debugging
   - File rotation (5MB limit)
+  - Structured logging with scope management (e.g., `backend:ai`, `renderer`)
+  - Process-specific loggers that integrate seamlessly
   - Automatic error catching with optional dialogs in development
-  - Structured logging with different levels for console vs file output
-  - Process-specific loggers for better debugging
 - **Usage**:
-  - Backend process: `import logger from './logger'` (within backend folder)
-  - Renderer process: `import { logger } from '@/lib/logger'`
+  - Main process: `import logger from './logger'`
+  - Backend process: `import logger from './logger'` - Logs sent to Main via IPC
+    - Create sub-scopes: `const aiLogger = logger.child('ai')`
+  - Renderer process: `import { logger } from '@/lib/logger'` - Uses electron-log/renderer
+- **Benefits**:
+  - Single file to monitor during development: `tail -f ./tmp/logs/app.log`
+  - Easy to trace cross-process flows (e.g., user action → IPC → backend → AI → response)
+  - Filter by process: `grep '[backend]' ./tmp/logs/app.log`
 
 ### UI & Styling Architecture
 
