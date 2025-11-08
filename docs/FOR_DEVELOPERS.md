@@ -631,12 +631,17 @@ brew install sqlite3
 # Ubuntu/Debian
 sudo apt-get install sqlite3
 
+# Windows (winget - 推奨)
+winget install SQLite.SQLite
+
 # Windows (Chocolatey)
 choco install sqlite
 
 # Windows (Scoop)
 scoop install sqlite
 ```
+
+**Note**: Windows ユーザーは winget が最も手軽です（Windows 10/11 に標準搭載）。
 
 **基本的な使い方**:
 

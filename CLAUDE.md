@@ -257,7 +257,8 @@ sqlite3 ./tmp/db/app.db ".schema settings"
 - Recommend installation for their platform:
   - macOS: `brew install sqlite3`
   - Ubuntu/Debian: `sudo apt-get install sqlite3`
-  - Windows: `choco install sqlite` or `scoop install sqlite`
+  - Windows: `winget install SQLite.SQLite` (recommended, built-in to Windows 10/11)
+  - Windows (alternatives): `choco install sqlite` or `scoop install sqlite`
 - As an alternative, suggest using Drizzle Studio: `pnpm run drizzle-kit studio`
 
 **Why sqlite3 is preferred**:
