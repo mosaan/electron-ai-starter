@@ -6,7 +6,6 @@ import * as fs from 'fs'
 import { sql } from 'drizzle-orm'
 import logger from '../logger'
 import { getDatabasePath } from '../paths'
-import migrationsPath from '@resources/db/migrations?asset'
 
 interface MigrationStatus {
   appliedCount: number
@@ -62,8 +61,15 @@ export function destroy(): void {
 }
 
 function _getMigrationsFolder(): string | null {
-  // Use electron-vite's ?asset pattern for consistent path resolution across all environments
-  return migrationsPath && fs.existsSync(migrationsPath) ? migrationsPath : null
+  // In development, use the resources folder directly
+  // In production, use the app.asar.unpacked path
+  const isDev = process.env.NODE_ENV === 'development'
+
+  const migrationsPath = isDev
+    ? path.join(process.cwd(), 'resources', 'db', 'migrations')
+    : path.join(process.resourcesPath, 'db', 'migrations')
+
+  return fs.existsSync(migrationsPath) ? migrationsPath : null
 }
 
 async function _getMigrationStatus(

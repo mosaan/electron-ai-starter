@@ -22,8 +22,8 @@ export const FACTORY = {
     createModel: (apiKey: string, model: string) => createAnthropic({ apiKey })(model)
   },
   google: {
-    default: 'gemini-1.5-pro',
-    available: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'],
+    default: 'gemini-2.5-flash',
+    available: ['gemini-2.5-pro', 'gemini-2.5-flash'],
     createModel: (apiKey: string, model: string) => createGoogleGenerativeAI({ apiKey })(model)
   }
 }

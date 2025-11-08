@@ -17,11 +17,21 @@ export default defineConfig(({ mode }) => {
       define: processEnv,
       build: {
         sourcemap: true,
-        minify: true
+        minify: mode === 'production',
+        rollupOptions: {
+          input: {
+            index: resolve('src/main/index.ts'),
+            'chunks/index': resolve('src/backend/server.ts')
+          },
+          output: {
+            entryFileNames: '[name].js'
+          }
+        }
       },
       resolve: {
         alias: {
           '@main': resolve('src/main'),
+          '@backend': resolve('src/backend'),
           '@common': resolve('src/common'),
           '@resources': resolve('resources')
         }
