@@ -12,4 +12,7 @@ out
 
 tmp
 
+# Claude Code local settings
+.claude/
+
 .serena
