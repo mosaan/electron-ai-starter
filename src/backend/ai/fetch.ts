@@ -163,6 +163,182 @@ export async function createCustomFetch(): Promise<
 }
 
 /**
+ * Create a custom fetch function with explicit proxy and certificate settings
+ *
+ * This is similar to createCustomFetch() but allows you to pass explicit settings
+ * instead of loading them from the database. Useful for connection testing.
+ *
+ * @param proxySettings - Proxy settings to use
+ * @param certSettings - Certificate settings to use
+ * @returns Custom fetch function
+ */
+export async function createFetchWithProxyAndCertificates(
+  proxySettings: import('@common/types').ProxySettings,
+  certSettings: import('@common/types').CertificateSettings
+): Promise<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>> {
+  fetchLogger.debug('Creating custom fetch with explicit settings')
+
+  // Determine certificates based on mode
+  let certificates: string[] | undefined
+  let rejectUnauthorized = true
+
+  if (certSettings.mode === 'custom') {
+    certificates = certSettings.customCertificates
+  } else if (certSettings.mode === 'system') {
+    // Get system certificates
+    certificates = certSettings.customCertificates
+  } else {
+    // mode === 'none', use Node.js defaults
+    certificates = undefined
+  }
+
+  if (certSettings.rejectUnauthorized !== undefined) {
+    rejectUnauthorized = certSettings.rejectUnauthorized
+  }
+
+  fetchLogger.info('Custom fetch configured with explicit settings', {
+    proxyMode: proxySettings.mode,
+    certMode: certSettings.mode,
+    hasCertificates: !!certificates,
+    certificateCount: certificates?.length || 0,
+    rejectUnauthorized
+  })
+
+  // Return custom fetch function
+  return async (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const urlString = typeof url === 'string' ? url : url.toString()
+
+    try {
+      // Parse URL to check if proxy should be used
+      const parsedUrl = new URL(urlString)
+
+      // Check bypass list
+      let shouldBypass = false
+      if (proxySettings.noProxy && proxySettings.noProxy.length > 0) {
+        const normalizedHost = parsedUrl.hostname.toLowerCase()
+        shouldBypass = proxySettings.noProxy.some((pattern) => {
+          const normalizedPattern = pattern.toLowerCase().trim()
+          if (normalizedPattern.startsWith('*.')) {
+            const domain = normalizedPattern.slice(2)
+            return normalizedHost.endsWith(domain) || normalizedHost === domain
+          }
+          if (normalizedPattern === '<local>') {
+            return !normalizedHost.includes('.')
+          }
+          return normalizedHost === normalizedPattern
+        })
+      }
+
+      // Determine if we need a custom agent
+      let agent: https.Agent | HttpsProxyAgent<string> | undefined
+
+      if (parsedUrl.protocol === 'https:') {
+        // Create HTTPS agent with custom certificates
+        const agentOptions: https.AgentOptions = {
+          rejectUnauthorized
+        }
+
+        // Add custom CA certificates if available
+        if (certificates && certificates.length > 0) {
+          agentOptions.ca = certificates
+        }
+
+        // Add proxy if configured and not bypassed
+        if (
+          proxySettings.mode !== 'none' &&
+          !shouldBypass &&
+          (proxySettings.httpsProxy || proxySettings.httpProxy)
+        ) {
+          const proxyUrl = proxySettings.httpsProxy || proxySettings.httpProxy
+
+          if (proxyUrl) {
+            // Build proxy URL with credentials if available
+            let proxyUrlWithAuth = proxyUrl
+            if (proxySettings.username) {
+              try {
+                const proxyUrlObj = new URL(proxyUrl)
+                proxyUrlObj.username = proxySettings.username
+                if (proxySettings.password) {
+                  proxyUrlObj.password = proxySettings.password
+                }
+                proxyUrlWithAuth = proxyUrlObj.toString()
+              } catch (error) {
+                fetchLogger.warn('Failed to parse proxy URL, using without auth', { error })
+              }
+            }
+
+            fetchLogger.debug('Using HTTPS proxy for request', {
+              host: parsedUrl.hostname,
+              proxy: sanitizeProxyUrl(proxyUrlWithAuth)
+            })
+
+            agent = new HttpsProxyAgent(proxyUrlWithAuth, agentOptions)
+          }
+        } else {
+          // No proxy, but may have custom certificates
+          agent = new https.Agent(agentOptions)
+        }
+      } else if (parsedUrl.protocol === 'http:') {
+        // For HTTP, we don't need certificate handling
+        if (
+          proxySettings.mode !== 'none' &&
+          !shouldBypass &&
+          (proxySettings.httpProxy || proxySettings.httpsProxy)
+        ) {
+          const proxyUrl = proxySettings.httpProxy || proxySettings.httpsProxy
+
+          if (proxyUrl) {
+            // Build proxy URL with credentials if available
+            let proxyUrlWithAuth = proxyUrl
+            if (proxySettings.username) {
+              try {
+                const proxyUrlObj = new URL(proxyUrl)
+                proxyUrlObj.username = proxySettings.username
+                if (proxySettings.password) {
+                  proxyUrlObj.password = proxySettings.password
+                }
+                proxyUrlWithAuth = proxyUrlObj.toString()
+              } catch (error) {
+                fetchLogger.warn('Failed to parse proxy URL, using without auth', { error })
+              }
+            }
+
+            fetchLogger.debug('Using HTTP proxy for request', {
+              host: parsedUrl.hostname,
+              proxy: sanitizeProxyUrl(proxyUrlWithAuth)
+            })
+
+            agent = new HttpsProxyAgent(proxyUrlWithAuth)
+          }
+        }
+      }
+
+      // Add agent to request init
+      const customInit: RequestInit = {
+        ...init,
+        agent
+      }
+
+      // Make the request
+      const response = await nodeFetch(url, customInit)
+
+      fetchLogger.debug('Request completed', {
+        status: response.status,
+        url: parsedUrl.hostname
+      })
+
+      return response as Response
+    } catch (error) {
+      fetchLogger.error('Request failed', {
+        url: urlString,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
+  }
+}
+
+/**
  * Sanitize proxy URL for logging
  * Removes credentials from the URL
  */

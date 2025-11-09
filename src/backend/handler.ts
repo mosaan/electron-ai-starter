@@ -1,5 +1,5 @@
 import { Connection } from '@common/connection'
-import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent, ProxySettings, CertificateSettings } from '@common/types'
+import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent, ProxySettings, CertificateSettings, ConnectionTestResult } from '@common/types'
 import { ok } from '@common/result'
 import { dirname } from 'path'
 import { getSetting, setSetting, getAllSettings, clearSetting } from './settings'
@@ -10,6 +10,7 @@ import { FACTORY } from './ai/factory'
 import { close, db, destroy } from './db'
 import { getProxySettings, setProxySettings, getSystemProxySettings } from './settings/proxy'
 import { getCertificateSettings, setCertificateSettings, getSystemCertificateSettings } from './settings/certificate'
+import { testProxyConnection, testCertificateConnection, testCombinedConnection } from './settings/connectionTest'
 
 export class Handler {
   private _rendererConnection: Connection
@@ -147,5 +148,24 @@ export class Handler {
   async getSystemCertificateSettings(): Promise<Result<CertificateSettings>> {
     const settings = await getSystemCertificateSettings()
     return ok(settings)
+  }
+
+  // Connection test handlers
+  async testProxyConnection(settings: ProxySettings): Promise<Result<ConnectionTestResult>> {
+    const result = await testProxyConnection(settings)
+    return ok(result)
+  }
+
+  async testCertificateConnection(settings: CertificateSettings): Promise<Result<ConnectionTestResult>> {
+    const result = await testCertificateConnection(settings)
+    return ok(result)
+  }
+
+  async testCombinedConnection(
+    proxySettings: ProxySettings,
+    certSettings: CertificateSettings
+  ): Promise<Result<ConnectionTestResult>> {
+    const result = await testCombinedConnection(proxySettings, certSettings)
+    return ok(result)
   }
 }

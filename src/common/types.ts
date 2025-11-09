@@ -106,6 +106,13 @@ export interface RendererBackendAPI {
   getCertificateSettings: () => Promise<Result<CertificateSettings>>
   setCertificateSettings: (settings: CertificateSettings) => Promise<Result<void>>
   getSystemCertificateSettings: () => Promise<Result<CertificateSettings>>
+  // Connection tests
+  testProxyConnection: (settings: ProxySettings) => Promise<Result<ConnectionTestResult>>
+  testCertificateConnection: (settings: CertificateSettings) => Promise<Result<ConnectionTestResult>>
+  testCombinedConnection: (
+    proxySettings: ProxySettings,
+    certSettings: CertificateSettings
+  ) => Promise<Result<ConnectionTestResult>>
 }
 
 export interface RendererMainAPI {
@@ -132,4 +139,18 @@ export interface CertificateSettings {
   mode: CertificateMode
   customCertificates?: string[]
   rejectUnauthorized?: boolean
+}
+
+// Connection Test Types
+
+export interface ConnectionTestResult {
+  success: boolean
+  message: string
+  details?: {
+    url?: string
+    statusCode?: number
+    responseTime?: number
+    error?: string
+    errorType?: 'proxy' | 'certificate' | 'network' | 'timeout' | 'unknown'
+  }
 }
