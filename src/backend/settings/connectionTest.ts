@@ -5,26 +5,11 @@
  * by making actual HTTP/HTTPS requests to verify settings.
  */
 
-import type { ProxySettings, CertificateSettings } from '@common/types'
+import type { ProxySettings, CertificateSettings, ConnectionTestResult } from '@common/types'
 import { createFetchWithProxyAndCertificates } from '../ai/fetch'
 import logger from '../logger'
 
 const testLogger = logger.child('settings:connectionTest')
-
-/**
- * Test result interface
- */
-export interface ConnectionTestResult {
-  success: boolean
-  message: string
-  details?: {
-    url?: string
-    statusCode?: number
-    responseTime?: number
-    error?: string
-    errorType?: 'proxy' | 'certificate' | 'network' | 'timeout' | 'unknown'
-  }
-}
 
 /**
  * Test URLs for connectivity checks
