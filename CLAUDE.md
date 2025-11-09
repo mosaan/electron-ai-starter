@@ -125,6 +125,38 @@ The configuration uses New York style with Lucide icons and neutral base color.
 - **Configuration**: AI settings stored in database and configurable via UI
 - **Session management**: Persistent chat sessions with proper state handling
 
+### Proxy and Certificate Configuration
+
+The application supports enterprise network environments with comprehensive proxy and certificate management:
+
+- **Proxy support**:
+  - System proxy detection (Windows)
+  - Custom proxy configuration with authentication
+  - HTTP/HTTPS proxy support
+  - Proxy bypass rules (No Proxy lists)
+- **Certificate support**:
+  - System certificate store integration (Windows)
+  - Custom CA certificates (planned feature)
+  - Certificate validation control
+- **Connection testing**: Built-in test functionality to verify proxy and certificate settings
+- **Configuration UI**: User-friendly settings interface with real-time validation
+- **Error handling**: Detailed error messages with categorization (proxy/certificate/network/timeout)
+
+**Key Implementation Details**:
+- Custom fetch factory (`src/backend/ai/fetch.ts`) creates fetch instances with proxy and certificate support
+- Settings stored in database and applied to all AI API requests
+- IPC-based configuration sync between renderer and backend
+- Connection tests make real HTTP/HTTPS requests to verify settings
+
+**Usage**:
+1. Open Settings page in the application
+2. Configure Proxy Settings (System/Custom/None)
+3. Configure Certificate Settings (System/Custom/Default)
+4. Use "Test Connection" to verify settings
+5. Save settings to apply to all AI requests
+
+For detailed configuration instructions and troubleshooting, see `docs/PROXY_CONFIGURATION.md`.
+
 ### Logging Configuration
 
 - **Unified logging system** - All three processes (Main, Backend, Renderer) log to a single `app.log` file
