@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { setupDatabaseTest } from './database-helper'
+import { createTestDatabase } from './database-helper'
 import { settings } from '@backend/db/schema'
 import { getSetting, setSetting, getAllSettings } from '@backend/settings'
 
@@ -18,8 +18,27 @@ vi.mock('@backend/logger', () => {
   }
 })
 
+// Mock the db module to use test database
+let testDbInstance: any = null
+
+vi.mock('@backend/db', async () => {
+  const actual = await vi.importActual('@backend/db')
+  return {
+    ...actual,
+    get db() {
+      return testDbInstance
+    }
+  }
+})
+
 describe('Database Operations', () => {
-  const getTestDatabase = setupDatabaseTest()
+  let getTestDatabase: () => Awaited<ReturnType<typeof createTestDatabase>>
+
+  beforeEach(async () => {
+    // Create a fresh test database for each test
+    testDbInstance = await createTestDatabase()
+    getTestDatabase = () => testDbInstance
+  })
 
   describe('Settings Table CRUD Operations', () => {
     it('should insert and retrieve a setting', async () => {
@@ -207,10 +226,12 @@ describe('Database Operations', () => {
 })
 
 describe('Settings Service Pattern', () => {
-  const getTestDatabase = setupDatabaseTest()
+  beforeEach(async () => {
+    // Create a fresh test database for each test
+    testDbInstance = await createTestDatabase()
+  })
 
   it('should support service-like operations with JSON values', async () => {
-    getTestDatabase()
 
     // Test service operations with JSON values
     await setSetting('test.complex', { nested: { value: 'data' }, array: [1, 2, 3] })
@@ -227,8 +248,6 @@ describe('Settings Service Pattern', () => {
   })
 
   it('should support getAllSettings function', async () => {
-    getTestDatabase()
-
     // Insert test data
     await setSetting('key1', 'value1')
     await setSetting('key2', { nested: 'value2' })
