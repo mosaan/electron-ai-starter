@@ -167,6 +167,8 @@ export class MCPManager {
       })
 
       this.serverConfigs.set(serverId, fullConfig)
+      // Set initial status as stopped
+      this.serverStatus.set(serverId, { status: 'stopped' })
 
       // Start server if enabled
       if (fullConfig.enabled) {
