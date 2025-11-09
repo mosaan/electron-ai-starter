@@ -1,5 +1,5 @@
 import { Connection } from '@common/connection'
-import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent } from '@common/types'
+import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent, ProxySettings, CertificateSettings } from '@common/types'
 import { ok } from '@common/result'
 import { dirname } from 'path'
 import { getSetting, setSetting, getAllSettings, clearSetting } from './settings'
@@ -8,6 +8,8 @@ import logger from './logger'
 import { streamText, abortStream, listAvailableModel, testConnection } from './ai'
 import { FACTORY } from './ai/factory'
 import { close, db, destroy } from './db'
+import { getProxySettings, setProxySettings, getSystemProxySettings } from './settings/proxy'
+import { getCertificateSettings, setCertificateSettings, getSystemCertificateSettings } from './settings/certificate'
 
 export class Handler {
   private _rendererConnection: Connection
@@ -113,5 +115,37 @@ export class Handler {
   async testAIProviderConnection(config: AIConfig): Promise<Result<boolean>> {
     const result = await testConnection(config)
     return ok(result)
+  }
+
+  // Proxy handlers
+  async getProxySettings(): Promise<Result<ProxySettings>> {
+    const settings = await getProxySettings()
+    return ok(settings)
+  }
+
+  async setProxySettings(settings: ProxySettings): Promise<Result<void>> {
+    await setProxySettings(settings)
+    return ok(undefined)
+  }
+
+  async getSystemProxySettings(): Promise<Result<ProxySettings>> {
+    const settings = await getSystemProxySettings()
+    return ok(settings)
+  }
+
+  // Certificate handlers
+  async getCertificateSettings(): Promise<Result<CertificateSettings>> {
+    const settings = await getCertificateSettings()
+    return ok(settings)
+  }
+
+  async setCertificateSettings(settings: CertificateSettings): Promise<Result<void>> {
+    await setCertificateSettings(settings)
+    return ok(undefined)
+  }
+
+  async getSystemCertificateSettings(): Promise<Result<CertificateSettings>> {
+    const settings = await getSystemCertificateSettings()
+    return ok(settings)
   }
 }

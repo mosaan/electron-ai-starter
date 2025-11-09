@@ -24,6 +24,14 @@ export class Server {
     abortAIText: (...args) => this._invoke('abortAIText', ...args),
     getAIModels: (...args) => this._invoke('getAIModels', ...args),
     testAIProviderConnection: (...args) => this._invoke('testAIProviderConnection', ...args),
+    // Proxy settings
+    getProxySettings: (...args) => this._invoke('getProxySettings', ...args),
+    setProxySettings: (...args) => this._invoke('setProxySettings', ...args),
+    getSystemProxySettings: (...args) => this._invoke('getSystemProxySettings', ...args),
+    // Certificate settings
+    getCertificateSettings: (...args) => this._invoke('getCertificateSettings', ...args),
+    setCertificateSettings: (...args) => this._invoke('setCertificateSettings', ...args),
+    getSystemCertificateSettings: (...args) => this._invoke('getSystemCertificateSettings', ...args),
     onEvent: (channel: string, callback: (appEvent: AppEvent) => void) => {
       this._backendConnection!.onEvent(channel, callback)
     },

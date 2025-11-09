@@ -12,6 +12,8 @@ import {
   CardFooter
 } from '@renderer/components/ui/card'
 import { AISettings } from './AISettings'
+import { ProxySettings } from './ProxySettings'
+import { CertificateSettings } from './CertificateSettings'
 
 interface SettingsProps {
   onBack: () => void
@@ -149,6 +151,10 @@ export function Settings({ onBack }: SettingsProps): React.JSX.Element {
           </Card>
 
           <AISettings className="shadow-sm" />
+
+          <ProxySettings className="shadow-sm" />
+
+          <CertificateSettings className="shadow-sm" />
 
           <Card className="shadow-sm">
             <CardHeader>

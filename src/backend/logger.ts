@@ -55,7 +55,7 @@ class BackendLogger implements ILogger {
     const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST
     const isProductionBackend = typeof process.send === 'function' && !isTestEnv
 
-    if (isProductionBackend) {
+    if (isProductionBackend && process.send) {
       try {
         process.send({
           type: 'log',

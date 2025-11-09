@@ -98,6 +98,14 @@ export interface RendererBackendAPI {
   abortAIText: (sessionId: string) => Promise<Result<void>>
   getAIModels: (provider: AIProvider) => Promise<Result<string[]>>
   testAIProviderConnection: (config: AIConfig) => Promise<Result<boolean>>
+  // Proxy settings
+  getProxySettings: () => Promise<Result<ProxySettings>>
+  setProxySettings: (settings: ProxySettings) => Promise<Result<void>>
+  getSystemProxySettings: () => Promise<Result<ProxySettings>>
+  // Certificate settings
+  getCertificateSettings: () => Promise<Result<CertificateSettings>>
+  setCertificateSettings: (settings: CertificateSettings) => Promise<Result<void>>
+  getSystemCertificateSettings: () => Promise<Result<CertificateSettings>>
 }
 
 export interface RendererMainAPI {
