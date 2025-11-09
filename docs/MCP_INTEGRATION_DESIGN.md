@@ -216,14 +216,60 @@ graph TB
 |------------|------|------|
 | `listMCPServers` | Renderer → Backend | 登録済み MCP サーバー一覧取得 |
 | `addMCPServer` | Renderer → Backend | MCP サーバーを追加 |
+| `updateMCPServer` | Renderer → Backend | MCP サーバーを更新 |
 | `removeMCPServer` | Renderer → Backend | MCP サーバーを削除 |
-| `connectMCPServer` | Renderer → Backend | MCP サーバーに接続 |
-| `disconnectMCPServer` | Renderer → Backend | MCP サーバーから切断 |
 | `getMCPResources` | Renderer → Backend | Resources 一覧取得 |
 | `getMCPTools` | Renderer → Backend | Tools 一覧取得 |
 | `getMCPPrompts` | Renderer → Backend | Prompts 一覧取得 |
 | `callMCPTool` | Renderer → Backend | Tool を実行 |
 | `mcpServerStatusChanged` | Backend → Renderer | サーバー接続状態の変化 (event) |
+
+### MCP サーバーのライフサイクル
+
+MCP サーバーの起動・停止は **`enabled` フィールドに基づいて自動的に管理**されます。
+
+**基本方針**:
+- **Enabled なサーバーは常に起動状態を維持**
+- ユーザーが明示的に Connect/Disconnect する必要はない
+- `enabled` の状態変更が起動・停止のトリガーとなる
+
+**ライフサイクルのタイミング**:
+
+1. **アプリ起動時**
+   - データベースから全サーバー設定を読み込み
+   - `enabled: true` のサーバーをすべて起動
+   - 起動に失敗したサーバーはエラー状態として記録
+
+2. **サーバー追加時**（UI から `addMCPServer()` 呼び出し）
+   - データベースに設定を保存
+   - `enabled: true` の場合、即座に起動
+   - `enabled: false` の場合、起動しない
+
+3. **サーバー更新時**（UI から `updateMCPServer()` 呼び出し）
+   - `enabled` の状態変化に応じて処理:
+     - `false → true`: サーバーを起動
+     - `true → false`: サーバーを停止
+     - `true → true`: 再起動（設定変更を反映）
+     - `false → false`: 何もしない
+   - コマンド・引数・環境変数の変更時は再起動が必要
+
+4. **サーバー削除時**（UI から `removeMCPServer()` 呼び出し）
+   - サーバーが起動中の場合、停止してから削除
+   - データベースから設定を削除
+
+5. **アプリ終了時**
+   - すべての起動中サーバーを停止
+   - クリーンアップ処理を実行
+
+**UI への影響**:
+- サーバー一覧には各サーバーの**接続状態**を表示（Connected / Disconnected / Error）
+- **Enabled トグル**のみ提供（Connect/Disconnect ボタンは不要）
+- Enabled を OFF にすると即座に停止、ON にすると即座に起動
+
+**エラーハンドリング**:
+- 起動に失敗したサーバーは Error 状態として UI に表示
+- エラーメッセージを保存し、ユーザーに通知
+- 自動リトライは行わない（ユーザーが設定を修正して再度 Enabled に）
 
 ---
 
@@ -259,10 +305,11 @@ src/
 #### 1. MCP Manager (`src/backend/mcp/manager.ts`)
 
 **責務**:
-- MCP サーバーへの接続・切断管理（AI SDK の `experimental_createMCPClient` 使用）
+- MCP サーバーの起動・停止管理（AI SDK の `experimental_createMCPClient` 使用）
 - 複数サーバーの並行管理
 - サーバー設定の読み込み・保存
 - クライアントインスタンスのライフサイクル管理
+- アプリ起動時の自動起動処理
 
 **実装例**:
 ```typescript
@@ -270,8 +317,23 @@ import { experimental_createMCPClient } from 'ai'
 
 class MCPManager {
   private clients: Map<string, ReturnType<typeof experimental_createMCPClient>> = new Map()
+  private serverConfigs: Map<string, MCPServerConfig> = new Map()
 
-  async connect(serverId: string, config: MCPServerConfig): Promise<Result<void>> {
+  // アプリ起動時に呼び出される
+  async initialize(): Promise<void> {
+    const configs = await this.loadServerConfigs()
+    for (const config of configs) {
+      this.serverConfigs.set(config.id, config)
+      if (config.enabled) {
+        await this.start(config.id)
+      }
+    }
+  }
+
+  async start(serverId: string): Promise<Result<void>> {
+    const config = this.serverConfigs.get(serverId)
+    if (!config) return error('Server config not found')
+
     const client = experimental_createMCPClient({
       transport: {
         type: 'stdio',
@@ -285,12 +347,60 @@ class MCPManager {
     return ok(undefined)
   }
 
-  async disconnect(serverId: string): Promise<Result<void>> {
+  async stop(serverId: string): Promise<Result<void>> {
     const client = this.clients.get(serverId)
     if (client) {
       // クライアントのクリーンアップ
       this.clients.delete(serverId)
     }
+    return ok(undefined)
+  }
+
+  // サーバー追加時に呼び出される
+  async addServer(config: Omit<MCPServerConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<Result<string>> {
+    const serverId = generateId()
+    const fullConfig = {
+      ...config,
+      id: serverId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    await this.saveServerConfig(fullConfig)
+    this.serverConfigs.set(serverId, fullConfig)
+
+    // enabled なら即座に起動
+    if (fullConfig.enabled) {
+      await this.start(serverId)
+    }
+
+    return ok(serverId)
+  }
+
+  // サーバー更新時に呼び出される
+  async updateServer(serverId: string, updates: Partial<MCPServerConfig>): Promise<Result<void>> {
+    const config = this.serverConfigs.get(serverId)
+    if (!config) return error('Server not found')
+
+    const wasEnabled = config.enabled
+    const newConfig = { ...config, ...updates, updatedAt: new Date() }
+
+    await this.saveServerConfig(newConfig)
+    this.serverConfigs.set(serverId, newConfig)
+
+    // enabled 状態の変化に応じて処理
+    if (!wasEnabled && newConfig.enabled) {
+      // 起動
+      await this.start(serverId)
+    } else if (wasEnabled && !newConfig.enabled) {
+      // 停止
+      await this.stop(serverId)
+    } else if (wasEnabled && newConfig.enabled) {
+      // 設定変更時は再起動
+      await this.stop(serverId)
+      await this.start(serverId)
+    }
+
     return ok(undefined)
   }
 
@@ -357,10 +467,9 @@ export class Handler {
 
   // MCP メソッド
   async listMCPServers(): Promise<Result<MCPServerConfig[]>>
-  async addMCPServer(config: MCPServerConfig): Promise<Result<void>>
+  async addMCPServer(config: Omit<MCPServerConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<Result<string>>
+  async updateMCPServer(serverId: string, updates: Partial<MCPServerConfig>): Promise<Result<void>>
   async removeMCPServer(serverId: string): Promise<Result<void>>
-  async connectMCPServer(serverId: string): Promise<Result<void>>
-  async disconnectMCPServer(serverId: string): Promise<Result<void>>
   async getMCPResources(serverId: string): Promise<Result<MCPResource[]>>
   async getMCPTools(serverId: string): Promise<Result<MCPTool[]>>
   async getMCPPrompts(serverId: string): Promise<Result<MCPPrompt[]>>
@@ -385,7 +494,6 @@ export const mcpServers = sqliteTable('mcp_servers', {
   command: text('command').notNull(),
   args: text('args', { mode: 'json' }).notNull(),  // string[]
   env: text('env', { mode: 'json' }),              // Record<string, string> | null
-  autoConnect: integer('auto_connect', { mode: 'boolean' }).notNull().default(false),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   includeResources: integer('include_resources', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
@@ -403,8 +511,7 @@ export const mcpServers = sqliteTable('mcp_servers', {
 | `command` | string | 実行コマンド (例: "node") |
 | `args` | string[] | コマンド引数 (例: ["path/to/server.js"]) |
 | `env` | object? | 環境変数 (例: {"API_KEY": "..."}) |
-| `autoConnect` | boolean | アプリ起動時に自動接続するか |
-| `enabled` | boolean | サーバーが有効か |
+| `enabled` | boolean | サーバーを有効にするか（有効にすると自動的に起動される） |
 | `includeResources` | boolean | Resources をツールとして含めるか（デフォルト: false） |
 | `createdAt` | Date | 作成日時 |
 | `updatedAt` | Date | 更新日時 |
@@ -421,8 +528,7 @@ export interface MCPServerConfig {
   command: string
   args: string[]
   env?: Record<string, string>
-  autoConnect: boolean
-  enabled: boolean
+  enabled: boolean           // サーバーを有効にするか（有効にすると自動的に起動される）
   includeResources: boolean  // Resources をツールとして含めるか（デフォルト: false）
   createdAt: Date
   updatedAt: Date
@@ -475,14 +581,24 @@ await window.backend.listMCPServers()
 
 **`addMCPServer(config)`**
 ```typescript
-// リクエスト: MCPServerConfig (id を除く)
+// リクエスト: MCPServerConfig (id, createdAt, updatedAt を除く)
 // レスポンス: Result<string>  // 作成された ID
 await window.backend.addMCPServer({
   name: "Filesystem Server",
   command: "node",
   args: ["/path/to/server.js"],
-  autoConnect: true,
-  enabled: true
+  enabled: true,  // true の場合、追加時点で起動される
+  includeResources: false
+})
+```
+
+**`updateMCPServer(serverId, config)`**
+```typescript
+// リクエスト: serverId, Partial<MCPServerConfig>
+// レスポンス: Result<void>
+// enabled の変更や設定変更時にサーバーを自動的に再起動
+await window.backend.updateMCPServer("server-123", {
+  enabled: false  // サーバーを停止
 })
 ```
 
@@ -490,21 +606,8 @@ await window.backend.addMCPServer({
 ```typescript
 // リクエスト: serverId
 // レスポンス: Result<void>
+// 起動中の場合は自動的に停止してから削除
 await window.backend.removeMCPServer("server-123")
-```
-
-**`connectMCPServer(serverId)`**
-```typescript
-// リクエスト: serverId
-// レスポンス: Result<void>
-await window.backend.connectMCPServer("server-123")
-```
-
-**`disconnectMCPServer(serverId)`**
-```typescript
-// リクエスト: serverId
-// レスポンス: Result<void>
-await window.backend.disconnectMCPServer("server-123")
 ```
 
 #### リソース・ツール・プロンプト取得
@@ -581,19 +684,27 @@ Settings
 │  [+ Add Server]                                     │
 │                                                     │
 │  ┌───────────────────────────────────────────────┐ │
-│  │ Filesystem Server                    [•]  [×] │ │
+│  │ Filesystem Server              [Enabled: ON]  │ │
 │  │ Access local files and directories            │ │
 │  │ Command: node /path/to/fs-server.js           │ │
 │  │ Status: Connected ✓                           │ │
-│  │ [Disconnect] [Edit] [Delete]                  │ │
+│  │ [Edit] [Delete]                               │ │
 │  └───────────────────────────────────────────────┘ │
 │                                                     │
 │  ┌───────────────────────────────────────────────┐ │
-│  │ GitHub Server                        [•]  [×] │ │
+│  │ GitHub Server                  [Enabled: OFF] │ │
 │  │ Interact with GitHub repositories             │ │
 │  │ Command: npx -y @github/mcp-server            │ │
-│  │ Status: Disconnected                          │ │
-│  │ [Connect] [Edit] [Delete]                     │ │
+│  │ Status: Stopped                               │ │
+│  │ [Edit] [Delete]                               │ │
+│  └───────────────────────────────────────────────┘ │
+│                                                     │
+│  ┌───────────────────────────────────────────────┐ │
+│  │ Database Server                [Enabled: ON]  │ │
+│  │ Query and manage databases                    │ │
+│  │ Command: python /path/to/db-server.py         │ │
+│  │ Status: Error (Connection refused)            │ │
+│  │ [Edit] [Delete]                               │ │
 │  └───────────────────────────────────────────────┘ │
 │                                                     │
 └─────────────────────────────────────────────────────┘
@@ -601,10 +712,10 @@ Settings
 
 **要素**:
 - サーバー名、説明
-- 接続ステータス (Connected / Disconnected / Error)
-- 自動接続トグル
-- 有効/無効トグル
-- アクション: Connect / Disconnect / Edit / Delete
+- **Enabled トグル**: ON/OFF 切り替え（ON にすると起動、OFF にすると停止）
+- 接続ステータス (Connected / Stopped / Error)
+- アクション: Edit / Delete
+- Connect/Disconnect ボタンは不要（Enabled トグルで制御）
 
 ### Add/Edit Server ダイアログ
 
@@ -644,8 +755,8 @@ Settings
 │ └─────────────────────┴─────────────────────────┘  │
 │ [+ Add Variable]                                    │
 │                                                     │
-│ ☑ Auto-connect on startup                          │
 │ ☑ Enabled                                           │
+│   (Server will start automatically when enabled)   │
 │                                                     │
 │ ☐ Include resources as tools                       │
 │   (Warning: May increase context size for this     │
@@ -656,11 +767,14 @@ Settings
 ```
 
 **設定の説明**:
+- **Enabled**: サーバーを有効にするかどうか（有効にすると追加時点で起動され、以降常に起動状態を維持）
 - **Include resources as tools**: このサーバーの Resources を AI のツールとして扱うかどうか
-- **デフォルト**: チェックOFF（`includeResources: false`）
+- **デフォルト**:
+  - `enabled: true` (すぐに使える状態にする)
+  - `includeResources: false` (コンテキスト圧迫を避ける)
 - **用途例**:
-  - ファイルシステムサーバー（大量のファイル）: OFF推奨
-  - GitHubサーバー（限定的なリソース）: ONも可
+  - ファイルシステムサーバー（大量のファイル）: includeResources OFF 推奨
+  - GitHubサーバー（限定的なリソース）: includeResources ON も可
   - カスタムサーバー: 用途に応じて選択
 
 ### MCP Resources/Tools ブラウザ (将来の拡張)
@@ -731,43 +845,49 @@ API キーなどの機密情報が環境変数に含まれる可能性があり�
 
 ### フェーズ 1: 基礎実装 (MVP)
 
-**目標**: 単一の MCP サーバーに接続し、リソース一覧を取得できる
+**目標**: MCP サーバーを追加し、自動的に起動してリソース一覧を取得できる
 
 **タスク**:
 1. ~~`@modelcontextprotocol/sdk` のインストール~~ → **不要**（AI SDK v4.3.17 に含まれる）
 2. データベーススキーマの追加とマイグレーション
 3. `MCPManager` の基本実装（`experimental_createMCPClient` 使用）
-   - `connect()`, `disconnect()`, `listResources()`
+   - `start(serverId)`, `stop(serverId)`, `listResources(serverId)`
+   - アプリ起動時に Enabled サーバーを自動起動
 4. Handler への MCP メソッド追加
+   - `listMCPServers()`, `addMCPServer()`, `updateMCPServer()`, `removeMCPServer()`
+   - `getMCPResources()`, `getMCPTools()`, `getMCPPrompts()`
 5. `src/common/types.ts` への型定義追加
 6. Renderer 側 API の実装（`window.backend.*` 経由）
-7. Settings UI の基本実装（サーバー追加・一覧表示・接続）
+7. Settings UI の基本実装（サーバー追加・一覧表示・Enabled トグル）
 
 **成功基準**:
 - ✅ MCP サーバーを設定画面から追加できる
-- ✅ サーバーに接続できる（AI SDK の `experimental_createMCPClient` 経由）
+- ✅ Enabled にしたサーバーが自動的に起動される（AI SDK の `experimental_createMCPClient` 経由）
+- ✅ Enabled トグルで起動・停止を切り替えられる
 - ✅ リソース一覧を取得・表示できる
 
 **実装の簡素化**:
 - `MCPClientWrapper` の実装は不要
 - 型変換ロジックも不要（AI SDK の型をそのまま使用）
 - 低レベルの MCP プロトコル処理は AI SDK が担当
+- Connect/Disconnect UI は不要（Enabled トグルで制御）
 
 ### フェーズ 2: 機能拡張 (Tools サポート)
 
-**目標**: Tools のサポート、複数サーバー管理
+**目標**: Tools のサポート、複数サーバー管理の安定化
 
 **タスク**:
 1. `listTools()` の実装
 2. `callTool()` の実装
-3. 複数サーバーの並行管理
-4. 自動接続機能
-5. エラーハンドリングの強化
-6. Settings UI の拡張（ツール一覧表示、ツール実行）
+3. 複数サーバーの並行管理の安定化
+4. エラーハンドリングの強化（再起動失敗時の処理など）
+5. Settings UI の拡張（ツール一覧表示、ツール実行）
+6. サーバー状態の監視とエラー通知
 
 **成功基準**:
-- ✅ 複数の MCP サーバーを同時に接続できる
+- ✅ 複数の MCP サーバーを同時に起動できる
 - ✅ ツールを実行できる
+- ✅ サーバーのエラー状態を適切に処理・表示できる
 
 ### フェーズ 3: AI 統合
 
@@ -926,9 +1046,10 @@ const client = experimental_createMCPClient({
 ---
 
 **更新日**: 2025-11-09
-**バージョン**: 2.2
+**バージョン**: 2.3
 **ステータス**: Draft (設計中)
 **変更履歴**:
+- v2.3: MCP サーバーのライフサイクル設計を明確化、`autoConnect` フィールドを削除し `enabled` のみで管理
 - v2.2: フェーズ 2 を Tools に集中、Prompts サポートをフェーズ 4（将来の拡張）に移動
 - v2.1: `includeResources` をサーバーごとの設定に変更（MCPServerConfig に配置）
 - v2.0: AI SDK の MCP サポートを反映した設計に変更（`experimental_createMCPClient` 使用）
