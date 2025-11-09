@@ -319,13 +319,21 @@ class MCPManager {
   }
 
   // AI統合用: 全サーバーのツールを取得
-  async getAllTools(includeResources = false): Promise<MCPTool[]> {
+  async getAllTools(): Promise<MCPTool[]> {
     const allTools: MCPTool[] = []
-    for (const [_serverId, client] of this.clients) {
-      const tools = await client.getTools({ includeResources })
+    for (const [serverId, client] of this.clients) {
+      // サーバー設定からincludeResourcesを取得
+      const config = await this.getServerConfig(serverId)
+      const tools = await client.getTools({ includeResources: config.includeResources })
       allTools.push(...tools)
     }
     return allTools
+  }
+
+  // サーバー設定を取得（データベースから）
+  private async getServerConfig(serverId: string): Promise<MCPServerConfig> {
+    // データベースからサーバー設定を取得
+    // 実装詳細は省略
   }
 }
 ```
@@ -333,7 +341,7 @@ class MCPManager {
 **重要なポイント**:
 - `@modelcontextprotocol/sdk` は使用しない
 - AI SDK の型定義をそのまま利用（型変換不要）
-- `getTools({ includeResources: true })` でオプションで Resources もツールとして扱える
+- **各サーバーの `includeResources` 設定を尊重**: サーバーごとに制御可能
 - `streamText()` に直接渡せる形式でツールを取得
 - **デフォルトは `includeResources: false`**: コンテキスト圧迫を避けるため
 
@@ -379,6 +387,7 @@ export const mcpServers = sqliteTable('mcp_servers', {
   env: text('env', { mode: 'json' }),              // Record<string, string> | null
   autoConnect: integer('auto_connect', { mode: 'boolean' }).notNull().default(false),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  includeResources: integer('include_resources', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
 })
@@ -396,6 +405,7 @@ export const mcpServers = sqliteTable('mcp_servers', {
 | `env` | object? | 環境変数 (例: {"API_KEY": "..."}) |
 | `autoConnect` | boolean | アプリ起動時に自動接続するか |
 | `enabled` | boolean | サーバーが有効か |
+| `includeResources` | boolean | Resources をツールとして含めるか（デフォルト: false） |
 | `createdAt` | Date | 作成日時 |
 | `updatedAt` | Date | 更新日時 |
 
@@ -413,6 +423,7 @@ export interface MCPServerConfig {
   env?: Record<string, string>
   autoConnect: boolean
   enabled: boolean
+  includeResources: boolean  // Resources をツールとして含めるか（デフォルト: false）
   createdAt: Date
   updatedAt: Date
 }
@@ -444,19 +455,6 @@ export interface MCPPrompt {
     description?: string
     required?: boolean
   }>
-}
-
-// 既存の AISettings に MCP 設定を追加
-export interface AISettings {
-  default_provider?: AIProvider
-  openai_api_key?: string
-  openai_model?: string
-  anthropic_api_key?: string
-  anthropic_model?: string
-  google_api_key?: string
-  google_model?: string
-  // MCP 設定
-  mcp_include_resources?: boolean  // デフォルト: false
 }
 ```
 
@@ -568,32 +566,10 @@ window.backend.onEvent('mcpServerStatusChanged', (event: AppEvent) => {
 
 ```
 Settings
-├── AI Providers (既存) ← MCP 設定も追加
+├── AI Providers (既存)
 ├── MCP Servers (新規) ← MCP サーバー管理
 └── Database (既存)
 ```
-
-**AI Providers タブの拡張**:
-既存の AI プロバイダー設定に、MCP 関連のオプションを追加します。
-
-```
-┌─────────────────────────────────────────────────────┐
-│ AI Providers                                        │
-├─────────────────────────────────────────────────────┤
-│ ... (既存の AI プロバイダー設定) ...               │
-│                                                     │
-│ MCP Integration                                     │
-│ ┌───────────────────────────────────────────────┐  │
-│ │ ☐ Include MCP resources as tools              │  │
-│ │   (Warning: May increase context size)         │  │
-│ └───────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
-```
-
-**説明**:
-- デフォルトはチェックOFF（`mcp_include_resources: false`）
-- チェックONにすると、MCP Resources がツールとして AI に渡される
-- コンテキスト圧迫の警告を表示
 
 ### MCP Servers タブの構成
 
@@ -671,9 +647,21 @@ Settings
 │ ☑ Auto-connect on startup                          │
 │ ☑ Enabled                                           │
 │                                                     │
+│ ☐ Include resources as tools                       │
+│   (Warning: May increase context size for this     │
+│    server. Use only if resources are limited.)     │
+│                                                     │
 │              [Cancel]  [Save]                       │
 └─────────────────────────────────────────────────────┘
 ```
+
+**設定の説明**:
+- **Include resources as tools**: このサーバーの Resources を AI のツールとして扱うかどうか
+- **デフォルト**: チェックOFF（`includeResources: false`）
+- **用途例**:
+  - ファイルシステムサーバー（大量のファイル）: OFF推奨
+  - GitHubサーバー（限定的なリソース）: ONも可
+  - カスタムサーバー: 用途に応じて選択
 
 ### MCP Resources/Tools ブラウザ (将来の拡張)
 
@@ -787,22 +775,18 @@ API キーなどの機密情報が環境変数に含まれる可能性があり�
 **目標**: AI チャットから MCP リソースやツールを利用できる
 
 **タスク**:
-1. `MCPManager.getAllTools()` の実装（全サーバーのツールを集約）
-2. AI 設定への `includeResources` オプション追加
-   - データベーススキーマに `mcp_include_resources` フィールドを追加
-   - Settings UI に「リソースをツールとして含める」チェックボックスを追加
-3. `streamAIText()` に MCP ツールを渡す実装
+1. `MCPManager.getAllTools()` の実装
+   - 全サーバーのツールを集約
+   - 各サーバーの `includeResources` 設定を尊重
+   - データベースからサーバー設定を取得するヘルパーメソッド追加
+2. `streamAIText()` に MCP ツールを渡す実装
    ```typescript
    // src/backend/handler.ts
    async streamAIText(messages: AIMessage[]): Promise<Result<string>> {
      // 既存のAI設定取得...
-     const aiSettings = await getSetting<AISettings>('ai')
 
-     // MCP設定を取得（デフォルトはリソースを含めない）
-     const includeResources = aiSettings.mcp_include_resources ?? false
-
-     // MCP ツールを取得
-     const mcpTools = await this._mcpManager.getAllTools(includeResources)
+     // MCP ツールを取得（各サーバーの設定に基づく）
+     const mcpTools = await this._mcpManager.getAllTools()
 
      // streamText() に渡す
      const sessionId = await streamText(
@@ -815,12 +799,12 @@ API キーなどの機密情報が環境変数に含まれる可能性があり�
      return ok(sessionId)
    }
    ```
-4. チャット UI でのツール実行結果の表示（Assistant UI が対応）
-5. プロンプトテンプレートの活用
+3. チャット UI でのツール実行結果の表示（Assistant UI が対応）
+4. プロンプトテンプレートの活用
 
 **成功基準**:
 - ✅ AI がツールを実行できる（MCP Tools を `streamText()` に渡すだけ）
-- ✅ オプションで Resources もツールとして扱える（設定で有効化）
+- ✅ サーバーごとに Resources をツールとして扱うかどうか制御可能
 - ✅ ユーザーがツール実行を確認・承認できる
 
 **AI SDK による簡素化**:
@@ -829,9 +813,9 @@ API キーなどの機密情報が環境変数に含まれる可能性があり�
 - ツール実行のハンドリングも AI SDK が担当
 
 **設計上の配慮**:
-- **デフォルトは `includeResources: false`**: 多数の Resources がツール化されるとコンテキストを圧迫するため
-- ユーザーが明示的に有効化した場合のみ Resources をツールとして扱う
-- 設定は AI 設定の一部として永続化される
+- **サーバーごとの設定**: `includeResources` はサーバー設定の一部
+- **デフォルトは `false`**: コンテキスト圧迫を避けるため
+- **柔軟性**: ファイルシステムサーバーは OFF、GitHubサーバーは ON など、サーバーの特性に応じて設定可能
 
 ### フェーズ 4: 高度な機能 (将来の拡張)
 
@@ -939,8 +923,9 @@ const client = experimental_createMCPClient({
 ---
 
 **更新日**: 2025-11-09
-**バージョン**: 2.0
+**バージョン**: 2.1
 **ステータス**: Draft (設計中)
 **変更履歴**:
+- v2.1: `includeResources` をサーバーごとの設定に変更（MCPServerConfig に配置）
 - v2.0: AI SDK の MCP サポートを反映した設計に変更（`experimental_createMCPClient` 使用）
 - v1.0: 初版（`@modelcontextprotocol/sdk` 直接使用）
