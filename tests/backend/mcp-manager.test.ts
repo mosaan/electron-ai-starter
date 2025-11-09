@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { setupDatabaseTest } from './database-helper'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { createTestDatabase } from './database-helper'
 import { MCPManager } from '@backend/mcp/manager'
 import type { MCPServerConfig } from '@common/types'
 
@@ -54,14 +54,34 @@ vi.mock('@backend/logger', () => ({
   }
 }))
 
+// Mock the db module to use test database
+let testDbInstance: any = null
+
+vi.mock('@backend/db', async () => {
+  const actual = await vi.importActual('@backend/db')
+  return {
+    ...actual,
+    get db() {
+      return testDbInstance
+    }
+  }
+})
+
 describe('MCPManager', () => {
-  const getTestDatabase = setupDatabaseTest()
   let manager: MCPManager
 
   beforeEach(async () => {
+    // Create a fresh test database for each test
+    testDbInstance = await createTestDatabase()
+
     // Create a fresh MCPManager instance for each test
     manager = new MCPManager()
     await manager.initialize()
+  })
+
+  afterEach(async () => {
+    // Cleanup after each test
+    await manager.cleanup()
   })
 
   describe('Server Management', () => {
