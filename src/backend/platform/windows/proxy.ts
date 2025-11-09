@@ -37,7 +37,8 @@ export async function getWindowsProxySettings(): Promise<ProxySettings> {
     }
 
     // Dynamic import to avoid loading on non-Windows platforms
-    const { getWindowsProxy } = await import('@cypress/get-windows-proxy')
+    // @cypress/get-windows-proxy uses module.exports (default export)
+    const getWindowsProxy = (await import('@cypress/get-windows-proxy')).default
 
     const windowsProxy: WindowsProxyConfig = await getWindowsProxy()
     proxyLogger.debug('Windows proxy retrieved', { proxy: sanitizeProxyForLog(windowsProxy) })

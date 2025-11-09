@@ -29,7 +29,8 @@ export async function getWindowsCertificateSettings(): Promise<CertificateSettin
     }
 
     // Dynamic import to avoid loading on non-Windows platforms
-    const winCa = await import('win-ca')
+    // win-ca uses module.exports (default export)
+    const { default: winCa } = await import('win-ca')
 
     const certificates: string[] = []
 
