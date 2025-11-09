@@ -50,21 +50,25 @@ class BackendLogger implements ILogger {
       timestamp: new Date().toISOString()
     }
 
-    // Send to Main Process via IPC (only if process.send is available)
-    if (typeof process.send === 'function') {
+    // Send to Main Process via IPC (only in production backend process)
+    // Skip in test environment to avoid interference with Vitest's IPC
+    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST
+    const isProductionBackend = typeof process.send === 'function' && !isTestEnv
+
+    if (isProductionBackend) {
       try {
         process.send({
           type: 'log',
           payload: logEntry
         })
       } catch (error) {
-        // Ignore IPC errors (e.g., in test environment)
+        // Ignore IPC errors
         console.warn('[logger] Failed to send log via IPC:', error)
       }
     }
 
-    // Also log to console for development or when IPC is not available
-    if (process.env.NODE_ENV === 'development' || !process.send) {
+    // Log to console in development or test environments
+    if (process.env.NODE_ENV === 'development' || isTestEnv) {
       const consoleMethod = level === 'debug' ? 'log' : level
       const prefix = `[${this.scope}]`
       if (data) {

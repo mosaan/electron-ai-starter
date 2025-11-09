@@ -11,8 +11,15 @@ MIIDYTCCAkmgAwIBAgIJAKL0UG+mRKK0MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
 BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 -----END CERTIFICATE-----`
 
+// Mock platform to simulate Windows
+Object.defineProperty(process, 'platform', {
+  value: 'win32',
+  writable: true,
+  configurable: true
+})
+
 // Mock logger before any imports that use it
-vi.mock('@backend/logger', () => ({
+vi.mock('../../src/backend/logger', () => ({
   default: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -27,13 +34,17 @@ vi.mock('@backend/logger', () => ({
   }
 }))
 
-// Mock Windows certificate module
-vi.mock('@backend/platform/windows/certificate', () => ({
-  getWindowsCertificateSettings: vi.fn(async () => ({
-    mode: 'system' as const,
-    customCertificates: [MOCK_CERT_1, MOCK_CERT_2],
-    rejectUnauthorized: true
-  }))
+// Mock win-ca module
+vi.mock('win-ca', () => ({
+  default: {
+    inject: vi.fn((_mode: string, callback: (error: Error | null, cert: string | null) => void) => {
+      // Call callback for each certificate
+      callback(null, MOCK_CERT_1)
+      callback(null, MOCK_CERT_2)
+      // Signal end with null certificate
+      callback(null, null)
+    })
+  }
 }))
 
 import { setupDatabaseTest } from './database-helper'
@@ -44,8 +55,8 @@ import {
   shouldRejectUnauthorized,
   addCustomCertificate,
   removeCustomCertificate
-} from '@backend/settings/certificate'
-import type { CertificateSettings } from '@common/types'
+} from '../../src/backend/settings/certificate'
+import type { CertificateSettings } from '../../src/common/types'
 
 describe('Certificate Settings Management', () => {
   const getTestDatabase = setupDatabaseTest()

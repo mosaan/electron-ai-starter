@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock logger before any imports that use it
-vi.mock('@backend/logger', () => ({
+vi.mock('../../src/backend/logger', () => ({
   default: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -22,13 +22,13 @@ vi.mock('node-fetch', () => ({
 }))
 
 // Mock Windows modules
-vi.mock('@backend/platform/windows/proxy', () => ({
+vi.mock('../../src/backend/platform/windows/proxy', () => ({
   getWindowsProxySettings: vi.fn(async () => ({
     mode: 'none' as const
   }))
 }))
 
-vi.mock('@backend/platform/windows/certificate', () => ({
+vi.mock('../../src/backend/platform/windows/certificate', () => ({
   getWindowsCertificateSettings: vi.fn(async () => ({
     mode: 'none' as const,
     rejectUnauthorized: true
@@ -40,10 +40,10 @@ import nodeFetch from 'node-fetch'
 const mockFetch = vi.mocked(nodeFetch)
 
 import { setupDatabaseTest } from './database-helper'
-import { createCustomFetch } from '@backend/ai/fetch'
-import { setProxySettings } from '@backend/settings/proxy'
-import { setCertificateSettings } from '@backend/settings/certificate'
-import type { ProxySettings, CertificateSettings } from '@common/types'
+import { createCustomFetch } from '../../src/backend/ai/fetch'
+import { setProxySettings } from '../../src/backend/settings/proxy'
+import { setCertificateSettings } from '../../src/backend/settings/certificate'
+import type { ProxySettings, CertificateSettings } from '../../src/common/types'
 
 const MOCK_CERT = `-----BEGIN CERTIFICATE-----
 MIIDXTCCAkWgAwIBAgIJAKL0UG+mRKKzMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV

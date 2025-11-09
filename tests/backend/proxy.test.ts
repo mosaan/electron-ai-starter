@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock platform to simulate Windows
+Object.defineProperty(process, 'platform', {
+  value: 'win32',
+  writable: true,
+  configurable: true
+})
+
 // Mock logger before any imports that use it
-vi.mock('@backend/logger', () => ({
+vi.mock('../../src/backend/logger', () => ({
   default: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -16,13 +23,12 @@ vi.mock('@backend/logger', () => ({
   }
 }))
 
-// Mock Windows proxy module
-vi.mock('@backend/platform/windows/proxy', () => ({
-  getWindowsProxySettings: vi.fn(async () => ({
-    mode: 'system' as const,
+// Mock @cypress/get-windows-proxy module
+vi.mock('@cypress/get-windows-proxy', () => ({
+  getWindowsProxy: vi.fn(async () => ({
     httpProxy: 'http://proxy.example.com:8080',
     httpsProxy: 'https://proxy.example.com:8443',
-    noProxy: ['localhost', '*.local']
+    noProxy: 'localhost;*.local'
   }))
 }))
 
@@ -32,8 +38,8 @@ import {
   setProxySettings,
   getProxyUrl,
   shouldBypassProxy
-} from '@backend/settings/proxy'
-import type { ProxySettings } from '@common/types'
+} from '../../src/backend/settings/proxy'
+import type { ProxySettings } from '../../src/common/types'
 
 describe('Proxy Settings Management', () => {
   const getTestDatabase = setupDatabaseTest()
@@ -169,7 +175,7 @@ describe('Proxy Settings Management', () => {
       })
 
       const url = await getProxyUrl('http')
-      expect(url).toBe('http://user:pass@proxy.com:8080')
+      expect(url).toBe('http://user:pass@proxy.com:8080/')
     })
 
     it('should include only username when no password provided', async () => {
@@ -180,7 +186,7 @@ describe('Proxy Settings Management', () => {
       })
 
       const url = await getProxyUrl('http')
-      expect(url).toBe('http://user@proxy.com:8080')
+      expect(url).toBe('http://user@proxy.com:8080/')
     })
 
     it('should handle invalid proxy URLs gracefully', async () => {

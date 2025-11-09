@@ -66,13 +66,13 @@ export function destroy(): void {
 }
 
 function _getMigrationsFolder(): string | null {
-  // In development, use the resources folder directly
+  // In development/test, use the resources folder directly
   // In production, use the app.asar.unpacked path
-  const isDev = process.env.NODE_ENV === 'development'
+  const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || process.env.VITEST
 
   const migrationsPath = isDev
     ? path.join(process.cwd(), 'resources', 'db', 'migrations')
-    : path.join(process.resourcesPath, 'db', 'migrations')
+    : path.join(process.resourcesPath || process.cwd(), 'db', 'migrations')
 
   return fs.existsSync(migrationsPath) ? migrationsPath : null
 }

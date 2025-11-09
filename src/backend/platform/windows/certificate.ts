@@ -25,7 +25,7 @@ export async function getWindowsCertificateSettings(): Promise<CertificateSettin
     // Only import on Windows platform
     if (process.platform !== 'win32') {
       certLogger.warn('Not on Windows platform, returning none mode')
-      return { mode: 'none' }
+      return { mode: 'none', rejectUnauthorized: true }
     }
 
     // Dynamic import to avoid loading on non-Windows platforms
@@ -67,7 +67,7 @@ export async function getWindowsCertificateSettings(): Promise<CertificateSettin
 
     if (certificates.length === 0) {
       certLogger.warn('No Windows certificates found')
-      return { mode: 'none' }
+      return { mode: 'none', rejectUnauthorized: true }
     }
 
     certLogger.info('Windows certificate settings retrieved successfully', {
@@ -82,7 +82,7 @@ export async function getWindowsCertificateSettings(): Promise<CertificateSettin
   } catch (error) {
     certLogger.error('Failed to retrieve Windows certificate settings', { error })
     // Return none mode on error
-    return { mode: 'none' }
+    return { mode: 'none', rejectUnauthorized: true }
   }
 }
 

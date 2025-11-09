@@ -1,5 +1,4 @@
 import { config } from 'dotenv'
-import { vi } from 'vitest'
 
 // Set environment variables BEFORE loading any modules
 // This ensures paths are resolved correctly
@@ -12,9 +11,7 @@ if (!process.env.MAIN_VITE_USER_DATA_PATH) {
 // Load environment variables for test environment
 config()
 
-// Mock process.send for backend logger
-// The backend logger uses IPC to send logs to main process,
-// but this is not available in test environment
-if (!process.send) {
-  process.send = vi.fn()
-}
+// Note: We don't mock process.send here because:
+// 1. Vitest uses process.send for its own IPC communication
+// 2. The backend logger already handles missing process.send gracefully
+// 3. Mocking it interferes with Vitest's worker pool communication

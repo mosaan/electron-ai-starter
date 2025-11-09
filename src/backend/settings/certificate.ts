@@ -42,8 +42,14 @@ export async function getCertificateSettings(): Promise<CertificateSettings> {
     const mode = storedSettings.mode
 
     switch (mode) {
-      case 'system':
-        return await getSystemCertificateSettings()
+      case 'system': {
+        const systemSettings = await getSystemCertificateSettings()
+        // Preserve user's rejectUnauthorized setting if specified
+        if (storedSettings.rejectUnauthorized !== undefined) {
+          systemSettings.rejectUnauthorized = storedSettings.rejectUnauthorized
+        }
+        return systemSettings
+      }
 
       case 'custom':
         certLogger.debug('Using custom certificate settings', {
@@ -53,7 +59,13 @@ export async function getCertificateSettings(): Promise<CertificateSettings> {
 
       case 'none':
         certLogger.debug('Using default Node.js certificates')
-        return { mode: 'none', rejectUnauthorized: true }
+        // Preserve user's rejectUnauthorized setting if specified
+        return {
+          mode: 'none',
+          rejectUnauthorized: storedSettings.rejectUnauthorized !== undefined
+            ? storedSettings.rejectUnauthorized
+            : true
+        }
 
       default:
         certLogger.warn('Unknown certificate mode, falling back to system', { mode })
