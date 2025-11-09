@@ -35,8 +35,9 @@ export async function ensureConnection(database: ReturnType<typeof drizzle>) {
 export async function runMigrations(database: ReturnType<typeof drizzle>): Promise<void> {
   const migrationsFolder = _getMigrationsFolder()
   if (!migrationsFolder) {
-    logger.info('No migrations folder found, skipping migrations')
-    return
+    const errorMsg = `Migrations folder not found. CWD: ${process.cwd()}, NODE_ENV: ${process.env.NODE_ENV}`
+    logger.error(errorMsg)
+    throw new Error(errorMsg)
   }
 
   const migrationStatus = await _getMigrationStatus(database, migrationsFolder)
@@ -44,9 +45,13 @@ export async function runMigrations(database: ReturnType<typeof drizzle>): Promi
   else logger.info(`${migrationStatus.pendingCount} pending db migration(s) to apply`)
 
   // Run migrations directly - libsql migrate handles checking if already applied
-  await migrate(database, { migrationsFolder })
-
-  logger.info(`DB migration completed`)
+  try {
+    await migrate(database, { migrationsFolder })
+    logger.info(`DB migration completed`)
+  } catch (error) {
+    logger.error('DB migration failed', error)
+    throw error
+  }
 }
 
 export function close(db: ReturnType<typeof drizzle>): void {
