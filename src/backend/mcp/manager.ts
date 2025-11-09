@@ -14,6 +14,7 @@ type MCPClient = ReturnType<typeof experimental_createMCPClient>
 export class MCPManager {
   private clients: Map<string, MCPClient> = new Map()
   private serverConfigs: Map<string, MCPServerConfig> = new Map()
+  private serverStatus: Map<string, { status: 'connected' | 'stopped' | 'error'; error?: string }> = new Map()
 
   /**
    * Initialize MCP Manager - automatically starts all enabled servers
@@ -28,6 +29,8 @@ export class MCPManager {
 
       for (const config of configs) {
         this.serverConfigs.set(config.id, config)
+        // Set initial status as stopped
+        this.serverStatus.set(config.id, { status: 'stopped' })
 
         if (config.enabled) {
           mcpLogger.info(`Auto-starting enabled server: ${config.name} (${config.id})`)
@@ -76,12 +79,14 @@ export class MCPManager {
       })
 
       this.clients.set(serverId, client)
+      this.serverStatus.set(serverId, { status: 'connected' })
       mcpLogger.info(`Successfully started server: ${config.name}`)
 
       return ok(undefined)
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       mcpLogger.error(`Failed to start server ${config.name}:`, err)
+      this.serverStatus.set(serverId, { status: 'error', error: errMsg })
       return error(`Failed to start server: ${errMsg}`)
     }
   }
@@ -103,6 +108,7 @@ export class MCPManager {
 
       // Clean up the client
       this.clients.delete(serverId)
+      this.serverStatus.set(serverId, { status: 'stopped' })
 
       mcpLogger.info(`Successfully stopped server: ${config?.name || serverId}`)
       return ok(undefined)
@@ -430,6 +436,20 @@ export class MCPManager {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }))
+  }
+
+  /**
+   * Get status of a specific server
+   */
+  getServerStatus(serverId: string): { status: 'connected' | 'stopped' | 'error'; error?: string } | null {
+    return this.serverStatus.get(serverId) || null
+  }
+
+  /**
+   * Get status of all servers
+   */
+  getAllServerStatus(): Map<string, { status: 'connected' | 'stopped' | 'error'; error?: string }> {
+    return new Map(this.serverStatus)
   }
 
   /**

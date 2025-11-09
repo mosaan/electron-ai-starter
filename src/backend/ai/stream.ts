@@ -1,7 +1,7 @@
 import { streamText } from 'ai'
 import logger from '../logger'
 import { createModel } from './factory'
-import type { AIMessage, AIConfig, AppEvent } from '@common/types'
+import type { AIMessage, AIConfig, AppEvent, MCPTool } from '@common/types'
 import { EventType } from '@common/types'
 import type { StreamSession } from './stream-session-store'
 
@@ -14,7 +14,8 @@ export async function streamSessionText(
   messages: AIMessage[],
   session: StreamSession,
   publishEvent: (channel: string, event: AppEvent) => void,
-  cb: () => void
+  cb: () => void,
+  tools?: MCPTool[]
 ): Promise<void> {
   try {
     const model = createModel(config.provider, config.apiKey, config.model)
@@ -26,12 +27,19 @@ export async function streamSessionText(
       )
     })
 
+    // Log MCP tools availability
+    if (tools && tools.length > 0) {
+      logger.info(`Streaming with ${tools.length} MCP tool(s) available for session: ${session.id}`)
+    }
+
     const result = streamText({
       model,
       messages,
       temperature: 0.7,
       maxTokens: 1000,
-      abortSignal: session.abortSignal
+      abortSignal: session.abortSignal,
+      // Add MCP tools if available
+      ...(tools && tools.length > 0 ? { tools } : {})
     })
 
     logger.info(`AI response streaming started with ${config.provider} for session: ${session.id}`)
