@@ -192,7 +192,7 @@ graph TB
     AISDK -->|stdio| Server1
     AISDK -->|stdio| Server2
     AISDK -->|stdio| Server3
-    AIHandler -->|getTools()| MCPManager
+    AIHandler -->|ツール取得| MCPManager
     AIHandler -->|tools渡し| AISDK
 ```
 
@@ -333,8 +333,9 @@ class MCPManager {
 **重要なポイント**:
 - `@modelcontextprotocol/sdk` は使用しない
 - AI SDK の型定義をそのまま利用（型変換不要）
-- `getTools({ includeResources: true })` で Resources もツールとして扱える
+- `getTools({ includeResources: true })` でオプションで Resources もツールとして扱える
 - `streamText()` に直接渡せる形式でツールを取得
+- **デフォルトは `includeResources: false`**: コンテキスト圧迫を避けるため
 
 #### 2. Handler 拡張 (`src/backend/handler.ts`)
 
@@ -443,6 +444,19 @@ export interface MCPPrompt {
     description?: string
     required?: boolean
   }>
+}
+
+// 既存の AISettings に MCP 設定を追加
+export interface AISettings {
+  default_provider?: AIProvider
+  openai_api_key?: string
+  openai_model?: string
+  anthropic_api_key?: string
+  anthropic_model?: string
+  google_api_key?: string
+  google_model?: string
+  // MCP 設定
+  mcp_include_resources?: boolean  // デフォルト: false
 }
 ```
 
@@ -554,10 +568,32 @@ window.backend.onEvent('mcpServerStatusChanged', (event: AppEvent) => {
 
 ```
 Settings
-├── AI Providers (既存)
-├── MCP Servers (新規) ← ここを追加
+├── AI Providers (既存) ← MCP 設定も追加
+├── MCP Servers (新規) ← MCP サーバー管理
 └── Database (既存)
 ```
+
+**AI Providers タブの拡張**:
+既存の AI プロバイダー設定に、MCP 関連のオプションを追加します。
+
+```
+┌─────────────────────────────────────────────────────┐
+│ AI Providers                                        │
+├─────────────────────────────────────────────────────┤
+│ ... (既存の AI プロバイダー設定) ...               │
+│                                                     │
+│ MCP Integration                                     │
+│ ┌───────────────────────────────────────────────┐  │
+│ │ ☐ Include MCP resources as tools              │  │
+│ │   (Warning: May increase context size)         │  │
+│ └───────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+**説明**:
+- デフォルトはチェックOFF（`mcp_include_resources: false`）
+- チェックONにすると、MCP Resources がツールとして AI に渡される
+- コンテキスト圧迫の警告を表示
 
 ### MCP Servers タブの構成
 
@@ -752,14 +788,21 @@ API キーなどの機密情報が環境変数に含まれる可能性があり�
 
 **タスク**:
 1. `MCPManager.getAllTools()` の実装（全サーバーのツールを集約）
-2. `streamAIText()` に MCP ツールを渡す実装
+2. AI 設定への `includeResources` オプション追加
+   - データベーススキーマに `mcp_include_resources` フィールドを追加
+   - Settings UI に「リソースをツールとして含める」チェックボックスを追加
+3. `streamAIText()` に MCP ツールを渡す実装
    ```typescript
    // src/backend/handler.ts
    async streamAIText(messages: AIMessage[]): Promise<Result<string>> {
      // 既存のAI設定取得...
+     const aiSettings = await getSetting<AISettings>('ai')
+
+     // MCP設定を取得（デフォルトはリソースを含めない）
+     const includeResources = aiSettings.mcp_include_resources ?? false
 
      // MCP ツールを取得
-     const mcpTools = await this._mcpManager.getAllTools({ includeResources: true })
+     const mcpTools = await this._mcpManager.getAllTools(includeResources)
 
      // streamText() に渡す
      const sessionId = await streamText(
@@ -772,18 +815,23 @@ API キーなどの機密情報が環境変数に含まれる可能性があり�
      return ok(sessionId)
    }
    ```
-3. チャット UI でのツール実行結果の表示（Assistant UI が対応）
-4. プロンプトテンプレートの活用
+4. チャット UI でのツール実行結果の表示（Assistant UI が対応）
+5. プロンプトテンプレートの活用
 
 **成功基準**:
-- ✅ AI がファイル内容を読み取れる（MCP Resources をツール化して利用）
 - ✅ AI がツールを実行できる（MCP Tools を `streamText()` に渡すだけ）
+- ✅ オプションで Resources もツールとして扱える（設定で有効化）
 - ✅ ユーザーがツール実行を確認・承認できる
 
 **AI SDK による簡素化**:
 - MCP Tools は AI SDK のツール形式に自動変換される
 - `streamText()` の `tools` パラメータに直接渡せる
 - ツール実行のハンドリングも AI SDK が担当
+
+**設計上の配慮**:
+- **デフォルトは `includeResources: false`**: 多数の Resources がツール化されるとコンテキストを圧迫するため
+- ユーザーが明示的に有効化した場合のみ Resources をツールとして扱う
+- 設定は AI 設定の一部として永続化される
 
 ### フェーズ 4: 高度な機能 (将来の拡張)
 
