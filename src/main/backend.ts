@@ -10,7 +10,9 @@ export class Backend {
 
   constructor() {
     const userDataPath = getBasePath()
-    this._process = utilityProcess.fork(backendPath, ['--user-data-path', userDataPath])
+    this._process = utilityProcess.fork(backendPath, ['--user-data-path', userDataPath], {
+      stdio: 'pipe' // Enable stdout/stderr capture
+    })
 
     // Setup listener for logs from backend process
     this._setupLogHandler()
