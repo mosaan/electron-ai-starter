@@ -1,5 +1,4 @@
 import { app, BrowserWindow } from 'electron'
-import { electronApp, optimizer } from '@electron-toolkit/utils'
 import logger, { initializeLogging } from './logger'
 import { Server } from './server'
 
@@ -15,13 +14,27 @@ function main() {
     logger.info('Main process started')
 
     // Set app user model id for windows
-    electronApp.setAppUserModelId('com.electron-ai-starter')
+    if (process.platform === 'win32') {
+      app.setAppUserModelId('com.electron-ai-starter')
+    }
 
     // Default open or close DevTools by F12 in development
     // and ignore CommandOrControl + R in production.
-    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
     app.on('browser-window-created', (_, window) => {
-      optimizer.watchWindowShortcuts(window)
+      if (process.env.NODE_ENV === 'development') {
+        window.webContents.on('before-input-event', (event, input) => {
+          if (input.key === 'F12') {
+            window.webContents.toggleDevTools()
+            event.preventDefault()
+          }
+        })
+      } else {
+        window.webContents.on('before-input-event', (event, input) => {
+          if (input.control && input.key === 'r') {
+            event.preventDefault()
+          }
+        })
+      }
     })
 
     // Setup main process server (handles backend and windows)
