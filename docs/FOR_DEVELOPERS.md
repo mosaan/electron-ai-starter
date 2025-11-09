@@ -14,6 +14,7 @@
 - [ログ設定](#ログ設定)
 - [データ管理とストレージ](#データ管理とストレージ)
 - [デバッグ方法](#デバッグ方法)
+- [関連ドキュメント](#関連ドキュメント)
 
 ## 環境構築・セットアップ
 
@@ -1065,6 +1066,17 @@ logger.transports.file.level = 'debug' // すべてのログを出力
 logger.transports.console.level = 'debug'
 ```
 
+## 関連ドキュメント
+
+プロジェクトをより深く理解するための追加ドキュメント:
+
+- **[IPC通信の詳細解説](./IPC_COMMUNICATION_DEEP_DIVE.md)** - MessagePort ベースの通信アーキテクチャを `streamAIText` を例に詳しく解説
+  - Connection クラスの詳細
+  - invoke/handle と publishEvent/onEvent パターン
+  - AsyncGenerator によるストリーミング実装
+  - デバッグ方法
+- **[AI プロバイダーの拡張](./EXTENDING_AI_PROVIDERS.md)** - 新しい AI プロバイダーを追加する方法
+
 ## 次のステップ
 
 - 詳細なコーディング規約は `CLAUDE.md` を参照
@@ -1073,4 +1085,4 @@ logger.transports.console.level = 'debug'
 
 ---
 
-**更新日**: 2025-11-08
+**更新日**: 2025-11-09
