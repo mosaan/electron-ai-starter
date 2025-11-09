@@ -44,15 +44,18 @@ vi.mock('ai', () => ({
 }))
 
 // Mock logger to avoid console output during tests
-vi.mock('@backend/logger', () => ({
-  default: {
-    child: () => ({
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn()
-    })
+vi.mock('@backend/logger', () => {
+  const createLoggerMock = () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(() => createLoggerMock())
+  })
+  return {
+    default: createLoggerMock()
   }
-}))
+})
 
 // Mock the db module to use test database
 let testDbInstance: any = null
@@ -81,7 +84,9 @@ describe('MCPManager', () => {
 
   afterEach(async () => {
     // Cleanup after each test
-    await manager.cleanup()
+    if (manager) {
+      await manager.cleanup()
+    }
   })
 
   describe('Server Management', () => {

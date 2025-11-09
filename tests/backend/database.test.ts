@@ -1,8 +1,22 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { setupDatabaseTest } from './database-helper'
 import { settings } from '@backend/db/schema'
 import { getSetting, setSetting, getAllSettings } from '@backend/settings'
+
+// Mock logger to avoid console output during tests
+vi.mock('@backend/logger', () => {
+  const createLoggerMock = () => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(() => createLoggerMock())
+  })
+  return {
+    default: createLoggerMock()
+  }
+})
 
 describe('Database Operations', () => {
   const getTestDatabase = setupDatabaseTest()
