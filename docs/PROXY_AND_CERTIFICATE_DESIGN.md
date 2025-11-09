@@ -675,6 +675,183 @@ src/renderer/src/
 
 ---
 
+## 実装状況（2025-11-09時点）
+
+### Phase 1: 完了した実装
+
+**コミット**: `86d934b` (2025-11-09)
+
+#### 実装された機能
+
+1. **プラットフォーム層** ✅
+   - `src/backend/platform/windows/proxy.ts` - Windows プロキシ設定取得
+   - `src/backend/platform/windows/certificate.ts` - Windows 証明書ストアアクセス
+
+2. **設定管理層** ✅
+   - `src/backend/settings/proxy.ts` - プロキシ設定の読み書き・モード管理
+   - `src/backend/settings/certificate.ts` - 証明書設定の読み書き・モード管理
+
+3. **Fetch Builder** ✅
+   - `src/backend/ai/fetch.ts` - カスタムfetch関数作成
+   - プロキシ・証明書を統合したHTTPクライアント
+
+4. **AI Factory統合** ✅
+   - `src/backend/ai/factory.ts` - カスタムfetchをAI SDKに渡す実装
+
+5. **データベースマイグレーション** ✅
+   - `resources/db/migrations/0001_add_default_proxy_certificate_settings.sql`
+   - デフォルトでシステムモードを設定
+
+6. **TypeScript型定義** ✅
+   - `src/common/types.ts` - ProxySettings, CertificateSettings型
+
+#### 導入したパッケージ
+
+```json
+{
+  "https-proxy-agent": "^7.0.5",
+  "node-fetch": "^2.7.0",
+  "@cypress/get-windows-proxy": "^1.8.2",
+  "win-ca": "^3.5.1"
+}
+```
+
+#### ユニットテスト（WIP）
+
+**コミット**: `d8da79a` (2025-11-09)
+
+- `tests/backend/proxy.test.ts` - プロキシ設定管理のテスト
+- `tests/backend/certificate.test.ts` - 証明書設定管理のテスト
+- `tests/backend/fetch.test.ts` - カスタムfetch builderのテスト
+
+**現状**: テストは作成済みだが、インフラ問題で実行できない（詳細は次セクション）
+
+### 現在の課題とリファクタリング計画
+
+#### 課題1: テストインフラの問題
+
+**問題**:
+- `logger`モジュールがimport時にIPC通信（`process.send`）を使用
+- テスト環境では`process.send`が未定義でモック設定前にエラーが発生
+- データベース接続が初期化タイミングでパス解決に失敗
+- モジュール間の循環依存が存在
+
+**影響**:
+- ユニットテストが実行できない（`The 'path' argument must be of type string. Received undefined`エラー）
+- モックが効かない（import時の副作用が発生）
+
+**根本原因**:
+```typescript
+// src/backend/logger.ts - import時に即座にインスタンス化
+const logger = new BackendLogger('backend')  // process.send を使用
+export default logger
+
+// src/backend/settings/proxy.ts - import時に logger を読み込み
+import logger from '../logger'
+const proxyLogger = logger.child('settings:proxy')  // トップレベルで実行
+```
+
+#### リファクタリング計画
+
+##### 優先度1: Logger の Lazy Initialization（高）
+
+**目的**: テスト時にloggerのモックを可能にする
+
+**変更内容**:
+```typescript
+// src/backend/logger.ts
+class BackendLogger {
+  private static instance: BackendLogger | null = null
+
+  static getInstance(scope: string = 'backend'): BackendLogger {
+    if (!BackendLogger.instance) {
+      BackendLogger.instance = new BackendLogger(scope)
+    }
+    return BackendLogger.instance
+  }
+
+  // テスト用のリセット
+  static resetForTest(): void {
+    BackendLogger.instance = null
+  }
+}
+
+export function getLogger(scope?: string): BackendLogger {
+  return scope
+    ? BackendLogger.getInstance('backend').child(scope)
+    : BackendLogger.getInstance('backend')
+}
+```
+
+**使用側の変更**:
+```typescript
+// Before
+import logger from '../logger'
+const proxyLogger = logger.child('settings:proxy')
+
+// After
+import { getLogger } from '../logger'
+// 関数内で使用
+const proxyLogger = getLogger('settings:proxy')
+```
+
+##### 優先度2: 依存性注入パターンの導入（中）
+
+**目的**: テスト時に依存関係をモック可能にする
+
+**変更内容**:
+```typescript
+// src/backend/settings/proxy.ts
+export async function getProxySettings(
+  deps = {
+    getSetting: getSetting,
+    getSystemProxy: getSystemProxySettings,
+    logger: getLogger('settings:proxy')
+  }
+): Promise<ProxySettings> {
+  // deps.logger.debug(), deps.getSetting() を使用
+}
+```
+
+##### 優先度3: テスト用ヘルパーの作成（中）
+
+**目的**: テスト環境の一貫したセットアップ
+
+**新規ファイル**: `tests/helpers/testSetup.ts`
+```typescript
+export function setupTestEnvironment() {
+  // process.send のモック
+  process.send = vi.fn()
+
+  // Logger のリセット
+  BackendLogger.resetForTest()
+
+  // DB パスの設定
+  process.env.TEST_DB_PATH = ':memory:'
+}
+```
+
+#### 実装スケジュール
+
+| タスク | 優先度 | 予想工数 | 状態 |
+|--------|--------|---------|------|
+| Logger Lazy Initialization | 高 | 2h | 🔄 計画中 |
+| Settings層の依存性注入 | 中 | 3h | ⏳ 未着手 |
+| Fetch Builder の依存性注入 | 中 | 2h | ⏳ 未着手 |
+| テスト用ヘルパー作成 | 中 | 1h | ⏳ 未着手 |
+| テスト修正と実行確認 | 高 | 2h | ⏳ 未着手 |
+
+### 未実装機能（Phase 2以降）
+
+- UI設定画面（プロキシ・証明書のカスタマイズ）
+- IPC API（設定の取得・更新・接続テスト）
+- カスタムモードの完全サポート
+- 接続テスト機能
+- エラーハンドリングの改善
+- macOS/Linux対応
+
+---
+
 ## リスクと制約事項
 
 ### 既知のリスク
