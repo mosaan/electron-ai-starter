@@ -35,8 +35,11 @@ export async function getProxySettings(): Promise<ProxySettings> {
     const storedSettings = await getSetting<ProxySettings>(PROXY_SETTINGS_KEY)
 
     if (!storedSettings) {
-      proxyLogger.info('No stored proxy settings, using system mode')
-      return await getSystemProxySettings()
+      proxyLogger.info('No stored proxy settings, initializing with system mode')
+      // On first launch, automatically set system mode
+      const systemSettings = await getSystemProxySettings()
+      await setProxySettings(systemSettings)
+      return systemSettings
     }
 
     const mode = storedSettings.mode

@@ -35,8 +35,11 @@ export async function getCertificateSettings(): Promise<CertificateSettings> {
     const storedSettings = await getSetting<CertificateSettings>(CERTIFICATE_SETTINGS_KEY)
 
     if (!storedSettings) {
-      certLogger.info('No stored certificate settings, using system mode')
-      return await getSystemCertificateSettings()
+      certLogger.info('No stored certificate settings, initializing with system mode')
+      // On first launch, automatically set system mode
+      const systemSettings = await getSystemCertificateSettings()
+      await setCertificateSettings(systemSettings)
+      return systemSettings
     }
 
     const mode = storedSettings.mode
