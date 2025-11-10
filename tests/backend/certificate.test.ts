@@ -44,17 +44,32 @@ vi.mock('../../src/backend/platform/windows/certificate', () => ({
 }))
 
 // Mock win-ca module (for potential direct imports)
-vi.mock('win-ca', () => ({
-  default: {
-    inject: vi.fn((_mode: string, callback: (error: Error | null, cert: string | null) => void) => {
-      // Call callback for each certificate
-      callback(null, MOCK_CERT_1)
-      callback(null, MOCK_CERT_2)
-      // Signal end with null certificate
-      callback(null, null)
-    })
+vi.mock('win-ca', () => {
+  const mockWinCa = vi.fn(
+    (options: { format?: any; ondata?: (cert: string) => void; onend?: () => void }) => {
+      if (options.ondata) {
+        // Call ondata for each certificate
+        options.ondata(MOCK_CERT_1)
+        options.ondata(MOCK_CERT_2)
+      }
+      if (options.onend) {
+        // Signal end
+        options.onend()
+      }
+    }
+  )
+
+  // Add der2 property for format constants
+  mockWinCa.der2 = {
+    pem: 1,
+    der: 0,
+    txt: 2
   }
-}))
+
+  return {
+    default: mockWinCa
+  }
+})
 
 import { setupDatabaseTest } from './database-helper'
 import {

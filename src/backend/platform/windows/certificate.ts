@@ -34,34 +34,25 @@ export async function getWindowsCertificateSettings(): Promise<CertificateSettin
 
     const certificates: string[] = []
 
-    // win-ca provides certificates through an async iterator or callback
-    // We'll collect all certificates into an array
+    // win-ca provides certificates through callbacks
+    // We use ondata/onend callbacks to collect all certificates
     await new Promise<void>((resolve, reject) => {
-      let certificateCount = 0
-
       try {
-        // win-ca.inject() adds certificates to Node.js CA store and can also provide them
-        // We use the callback form to collect certificates
-        winCa.inject('+', (error, certificate) => {
-          if (error) {
-            certLogger.error('Error retrieving certificate', { error })
-            reject(error)
-            return
-          }
-
-          if (certificate) {
-            // Convert Buffer to PEM format if needed
-            const pemCert = bufferToPem(certificate)
-            certificates.push(pemCert)
-            certificateCount++
-          } else {
-            // null certificate signals end of stream
-            certLogger.info('Windows certificates retrieved', { count: certificateCount })
+        // Call winCa as a function with options
+        winCa({
+          format: winCa.der2.pem, // Request PEM format directly
+          ondata: (cert: string) => {
+            // Each certificate is provided as PEM string
+            certificates.push(cert)
+          },
+          onend: () => {
+            // Called when all certificates have been retrieved
+            certLogger.info('Windows certificates retrieved', { count: certificates.length })
             resolve()
           }
         })
       } catch (error) {
-        certLogger.error('Failed to inject Windows certificates', { error })
+        certLogger.error('Failed to retrieve Windows certificates', { error })
         reject(error)
       }
     })
