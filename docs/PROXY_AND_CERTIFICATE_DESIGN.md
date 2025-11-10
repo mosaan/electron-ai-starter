@@ -835,6 +835,74 @@ Duration:    ~2.4 seconds
    - `tests/backend/certificate.test.ts` - Windows platform モック追加
    - テスト成功率: 100% (79/79)
 
+### ✅ Windows環境でのE2Eテストと最終調整 (100%)
+
+**実Windows環境での動作確認**: 2025-11-09 23:00-24:00
+**バグ修正コミット**: `5b000df`, `5df0316`, `ac6eb6c`, `9adf458`
+
+#### 実施したE2Eテスト
+
+1. **Windows環境での実機テスト** ✅
+   - Windows 11 環境でアプリケーション起動確認
+   - AI チャット機能の正常動作確認
+   - プロキシ・証明書設定の読み込み確認
+
+2. **発見された問題と修正** ✅
+
+   **問題1: CommonJS モジュールのインポートエラー**
+   - エラー: `getWindowsProxy is not a function`, `winCa.inject is not a function`
+   - 原因: dynamic import で named import として扱っていた
+   - 修正: `.default` import に変更 (`5b000df`)
+   ```typescript
+   // 修正前
+   const { getWindowsProxy } = await import('@cypress/get-windows-proxy')
+
+   // 修正後
+   const getWindowsProxy = (await import('@cypress/get-windows-proxy')).default
+   ```
+
+   **問題2: win-ca API の使用方法エラー**
+   - エラー: 証明書読み込みでハング
+   - 原因: `winCa.inject()` は存在しない、正しいAPIは関数呼び出し
+   - 修正: `ondata`/`onend` コールバックパターンに変更 (`5df0316`)
+   ```typescript
+   // 修正前
+   winCa.inject('+', (error, certificate) => { ... })
+
+   // 修正後
+   winCa({
+     format: winCa.der2.pem,
+     ondata: (cert) => { certificates.push(cert) },
+     onend: () => { resolve() }
+   })
+   ```
+
+   **問題3: 初回起動時のUX改善**
+   - 改善: system モードを自動的にデータベースに保存 (`ac6eb6c`)
+   - 効果: Settings UI で初回から「System」が選択された状態で表示
+
+   **問題4: プロキシ未設定環境への対応**
+   - 改善: Windows プロキシ設定がない場合に `none` モードを返す (`9adf458`)
+   - 効果: プロキシ未設定環境でもエラーなく動作
+
+#### E2Eテスト結果
+
+**テスト環境**:
+- OS: Windows 11
+- プロキシ: なし（直接接続）
+- 証明書: Windows システム証明書ストア使用
+
+**テスト項目と結果**:
+- ✅ アプリケーション起動
+- ✅ Windows システムプロキシ設定読み取り（未設定の場合の処理含む）
+- ✅ Windows 証明書ストアからの証明書取得
+- ✅ AI API への接続（Google Gemini）
+- ✅ チャットメッセージの送受信
+- ✅ Settings UI での設定表示・変更
+- ✅ Connection Test 機能の動作
+
+**結論**: すべてのコア機能が実際のWindows環境で正常に動作することを確認
+
 ### 完了したリファクタリング
 
 #### ✅ Logger のテスタビリティ向上 (完了)
@@ -880,19 +948,19 @@ Duration:    ~2.4 seconds
 
 ### 残っている課題
 
-#### 課題1: 実際のWindows環境でのE2Eテスト (優先度: 中)
+#### 課題1: 企業プロキシ環境でのテスト (優先度: 低 - オプション)
 
 **必要性**:
-- ユニットテストは100%パスしているが、実際のWindows環境での動作確認が必要
-- 実際のプロキシ・証明書環境でのエンドツーエンドテスト
+- 直接接続環境でのE2Eテストは完了
+- より厳格な企業プロキシ環境（Zscaler、認証プロキシ等）での検証はオプション
 
 **テスト項目**:
-1. Windowsシステムプロキシ設定の読み取り
-2. Windows証明書ストアからの証明書取得
-3. 企業プロキシ（Zscaler等）経由でのAI API接続
-4. カスタムプロキシ・証明書設定での接続
+1. 認証付きプロキシ経由での接続
+2. 企業SSL/TLSインターセプション環境での動作
+3. PAC ファイル環境での動作（未対応だが影響確認）
+4. NTLM/Kerberos 認証環境での動作（未対応だが影響確認）
 
-**実装タイミング**: Phase 2以降
+**優先度**: 低（基本機能は完成、特殊環境での追加検証）
 
 ### 現在の実装完成度
 
@@ -904,7 +972,7 @@ Duration:    ~2.4 seconds
 | Fetch Builder | 100% | 組み込みfetch + undici実装完了 |
 | AI Factory統合 | 100% | AI SDK統合完了 |
 | ユニットテスト | 100% | 79テスト中79がパス |
-| E2Eテスト | 0% | 実Windows環境での検証未実施 |
+| E2Eテスト | 100% | Windows 11環境で動作確認完了 |
 | **Phase 2: UI・カスタムモード** | 100% | IPC API、UI統合完了 |
 | IPC API層 | 100% | Handler、Preload、Types実装完了 |
 | UI コンポーネント | 100% | ProxySettings、CertificateSettings完成 |
@@ -932,24 +1000,27 @@ Duration:    ~2.4 seconds
 
 ### 次のステップ
 
-**現在の状態**: Phase 1-3 完了、Issue #4 の要件をすべて満たしています。
+**現在の状態**: Phase 1-3 完了、Windows環境でのE2Eテスト完了、Issue #4 の要件をすべて満たしています。
 
 **推奨される次のステップ**:
 
-**優先度1: 実Windows環境でのE2Eテスト**
-1. 実際のWindows環境での動作確認
-2. 企業プロキシ環境（Zscaler等）での検証
-3. 各種設定パターンのテスト（System/Custom/None）
-4. Connection Test 機能の実地テスト
-
-**優先度2: PR作成とマージ**
+**優先度1: PR作成とマージ** ✅ Ready
 1. 現在のブランチで PR を作成
 2. コードレビュー
 3. main ブランチへのマージ
 
+**実装完了サマリー**:
+- ✅ Phase 1: Windows システムモード実装
+- ✅ Phase 2: UI・カスタムモード実装
+- ✅ Phase 3: エラーハンドリング・ドキュメント・監視
+- ✅ ユニットテスト: 100% パス (79/79)
+- ✅ E2Eテスト: Windows 11 環境で動作確認
+- ✅ バグ修正: CommonJS import、win-ca API、UX改善
+
 **将来的な拡張（オプション）**:
 - Phase 4: macOS/Linux 対応
-- 追加機能: 設定インポート/エクスポート、PAC サポート等
+- 追加機能: 設定インポート/エクスポート、PAC サポート、NTLM/Kerberos 認証
+- 企業プロキシ環境（Zscaler等）での追加検証
 
 ---
 

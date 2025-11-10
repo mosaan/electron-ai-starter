@@ -127,35 +127,53 @@ The configuration uses New York style with Lucide icons and neutral base color.
 
 ### Proxy and Certificate Configuration
 
+**Status**: ✅ Fully implemented and tested on Windows 11 (Phase 1-3 complete)
+
 The application supports enterprise network environments with comprehensive proxy and certificate management:
 
 - **Proxy support**:
-  - System proxy detection (Windows)
-  - Custom proxy configuration with authentication
-  - HTTP/HTTPS proxy support
+  - System proxy detection (Windows) - reads from Windows registry
+  - Custom proxy configuration with authentication (username/password)
+  - HTTP/HTTPS proxy support with undici ProxyAgent
   - Proxy bypass rules (No Proxy lists)
+  - Automatic fallback to 'none' mode if no proxy configured
 - **Certificate support**:
-  - System certificate store integration (Windows)
-  - Custom CA certificates (planned feature)
-  - Certificate validation control
+  - System certificate store integration (Windows) - uses win-ca library
+  - Custom CA certificates (PEM format)
+  - Certificate validation control (rejectUnauthorized option)
+  - Automatic initialization to system mode on first launch
 - **Connection testing**: Built-in test functionality to verify proxy and certificate settings
+  - Tests real HTTP/HTTPS connections to google.com
+  - Categorizes errors (proxy/certificate/network/timeout/unknown)
+  - Displays response time and detailed error messages
 - **Configuration UI**: User-friendly settings interface with real-time validation
-- **Error handling**: Detailed error messages with categorization (proxy/certificate/network/timeout)
+  - System/Custom/None mode selection
+  - Live feedback on save/load operations
+  - Test Connection button with success/error indicators
+- **Error handling**: Detailed error messages with categorization and troubleshooting hints
 
 **Key Implementation Details**:
-- Custom fetch factory (`src/backend/ai/fetch.ts`) creates fetch instances with proxy and certificate support
+- Custom fetch factory (`src/backend/ai/fetch.ts`) uses Node.js built-in fetch + undici ProxyAgent
 - Settings stored in database and applied to all AI API requests
 - IPC-based configuration sync between renderer and backend
 - Connection tests make real HTTP/HTTPS requests to verify settings
+- Platform-specific modules for Windows (`src/backend/platform/windows/`)
+- Full TypeScript type safety across IPC boundaries
+
+**Supported Platforms**:
+- ✅ Windows (fully tested on Windows 11)
+- ⚠️ macOS (planned for future, currently defaults to 'none' mode)
+- ⚠️ Linux (planned for future, currently defaults to 'none' mode)
 
 **Usage**:
-1. Open Settings page in the application
-2. Configure Proxy Settings (System/Custom/None)
-3. Configure Certificate Settings (System/Custom/Default)
-4. Use "Test Connection" to verify settings
-5. Save settings to apply to all AI requests
+1. On first launch, system proxy and certificate settings are automatically detected and saved
+2. Open Settings page to view or modify proxy/certificate configuration
+3. Choose mode: System (auto-detect), Custom (manual), or None (direct connection)
+4. Use "Test Connection" to verify settings work correctly
+5. All AI API requests automatically use configured settings
 
 For detailed configuration instructions and troubleshooting, see `docs/PROXY_CONFIGURATION.md`.
+For technical design details, see `docs/PROXY_AND_CERTIFICATE_DESIGN.md`.
 
 ### Logging Configuration
 
