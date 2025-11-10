@@ -41,6 +41,10 @@ export async function getWindowsProxySettings(): Promise<ProxySettings> {
     const getWindowsProxy = (await import('@cypress/get-windows-proxy')).default
 
     const windowsProxy: WindowsProxyConfig = await getWindowsProxy()
+    if (!windowsProxy) {
+      proxyLogger.info('No Windows proxy configuration found, returning none mode')
+      return { mode: 'none' }
+    }
     proxyLogger.debug('Windows proxy retrieved', { proxy: sanitizeProxyForLog(windowsProxy) })
 
     // Parse the proxy settings
