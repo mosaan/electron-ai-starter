@@ -16,6 +16,19 @@ vi.mock('../../src/backend/logger', () => ({
   }
 }))
 
+// Mock the db module to use test database
+let testDbInstance: any = null
+
+vi.mock('../../src/backend/db', async () => {
+  const actual = await vi.importActual('../../src/backend/db')
+  return {
+    ...actual,
+    get db() {
+      return testDbInstance
+    }
+  }
+})
+
 // Mock Windows modules
 vi.mock('../../src/backend/platform/windows/proxy', () => ({
   getWindowsProxySettings: vi.fn(async () => ({
@@ -34,7 +47,7 @@ vi.mock('../../src/backend/platform/windows/certificate', () => ({
 const mockFetch = vi.fn()
 global.fetch = mockFetch as any
 
-import { setupDatabaseTest } from './database-helper'
+import { createTestDatabase } from './database-helper'
 import { createCustomFetch } from '../../src/backend/ai/fetch'
 import { setProxySettings } from '../../src/backend/settings/proxy'
 import { setCertificateSettings } from '../../src/backend/settings/certificate'
@@ -46,10 +59,9 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 -----END CERTIFICATE-----`
 
 describe('Custom Fetch Builder', () => {
-  const getTestDatabase = setupDatabaseTest()
-
-  beforeEach(() => {
-    getTestDatabase()
+  beforeEach(async () => {
+    // Create a fresh test database for each test
+    testDbInstance = await createTestDatabase()
     mockFetch.mockClear()
     mockFetch.mockResolvedValue({
       status: 200,
