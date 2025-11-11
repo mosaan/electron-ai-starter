@@ -36,12 +36,13 @@ vi.mock('../../src/backend/db', async () => {
   }
 })
 
-// Mock @cypress/get-windows-proxy module
-vi.mock('@cypress/get-windows-proxy', () => ({
-  getWindowsProxy: vi.fn(async () => ({
+// Mock Windows proxy module
+vi.mock('../../src/backend/platform/windows/proxy', () => ({
+  getWindowsProxySettings: vi.fn(async () => ({
+    mode: 'system' as const,
     httpProxy: 'http://proxy.example.com:8080',
     httpsProxy: 'https://proxy.example.com:8443',
-    noProxy: 'localhost;*.local'
+    noProxy: ['localhost', '*.local']
   }))
 }))
 
