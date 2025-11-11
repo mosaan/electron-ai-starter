@@ -3,7 +3,8 @@ import { Plus, Edit2, Trash2, Server as ServerIcon, Link, Unlink, AlertCircle } 
 import { Button } from '@renderer/components/ui/button'
 import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
-import type { MCPServerConfig } from '@common/types'
+import { EventType } from '@common/types'
+import type { AppEvent, MCPServerStatus, MCPServerWithStatus } from '@common/types'
 import {
   Card,
   CardContent,
@@ -37,10 +38,10 @@ interface ServerFormData {
 }
 
 export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element {
-  const [servers, setServers] = useState<MCPServerConfig[]>([])
+  const [servers, setServers] = useState<MCPServerWithStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
-  const [editingServer, setEditingServer] = useState<MCPServerConfig | null>(null)
+  const [editingServer, setEditingServer] = useState<MCPServerWithStatus | null>(null)
   const [formData, setFormData] = useState<ServerFormData>({
     name: '',
     description: '',
@@ -55,6 +56,32 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
 
   useEffect(() => {
     loadServers()
+  }, [])
+
+  useEffect(() => {
+    const handleStatusChange = (event: AppEvent): void => {
+      if (!event || event.type !== EventType.Status) {
+        return
+      }
+
+      const status = event.payload as MCPServerStatus
+      setServers((prev) => {
+        let didUpdate = false
+        const next = prev.map((server) => {
+          if (server.id === status.serverId) {
+            didUpdate = true
+            return { ...server, runtimeStatus: status }
+          }
+          return server
+        })
+        return didUpdate ? next : prev
+      })
+    }
+
+    window.backend.onEvent('mcpServerStatusChanged', handleStatusChange)
+    return () => {
+      window.backend.offEvent('mcpServerStatusChanged')
+    }
   }, [])
 
   const loadServers = async (): Promise<void> => {
@@ -74,7 +101,7 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
     setIsLoading(false)
   }
 
-  const handleOpenDialog = (server?: MCPServerConfig): void => {
+  const handleOpenDialog = (server?: MCPServerWithStatus): void => {
     if (server) {
       setEditingServer(server)
       setFormData({
@@ -105,10 +132,12 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
     setShowDialog(true)
   }
 
-  const handleCloseDialog = (): void => {
+  const handleCloseDialog = (options?: { preserveMessage?: boolean }): void => {
     setShowDialog(false)
     setEditingServer(null)
-    setMessage(null)
+    if (!options?.preserveMessage) {
+      setMessage(null)
+    }
   }
 
   const handleSaveServer = async (): Promise<void> => {
@@ -145,17 +174,21 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
       includeResources: formData.includeResources
     }
 
-    if (editingServer) {
-      // Update existing server
-      const result = await window.backend.updateMCPServer(editingServer.id, serverConfig)
+    const serverName = formData.name
+    const isEdit = Boolean(editingServer)
+
+    setMessage(null)
+    handleCloseDialog({ preserveMessage: true })
+
+    if (isEdit) {
+      const result = await window.backend.updateMCPServer(editingServer!.id, serverConfig)
+      await loadServers()
 
       if (isOk(result)) {
         setMessage({
           type: 'success',
-          text: `Server "${formData.name}" updated successfully`
+          text: `Server "${serverName}" updated successfully`
         })
-        await loadServers()
-        handleCloseDialog()
       } else {
         logger.error('Failed to update server:', result.error)
         setMessage({
@@ -164,16 +197,14 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
         })
       }
     } else {
-      // Add new server
       const result = await window.backend.addMCPServer(serverConfig)
+      await loadServers()
 
       if (isOk(result)) {
         setMessage({
           type: 'success',
-          text: `Server "${formData.name}" added successfully`
+          text: `Server "${serverName}" added successfully`
         })
-        await loadServers()
-        handleCloseDialog()
       } else {
         logger.error('Failed to add server:', result.error)
         setMessage({
@@ -184,7 +215,7 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
     }
   }
 
-  const handleDeleteServer = async (server: MCPServerConfig): Promise<void> => {
+  const handleDeleteServer = async (server: MCPServerWithStatus): Promise<void> => {
     if (!confirm(`Are you sure you want to delete "${server.name}"?`)) {
       return
     }
@@ -206,17 +237,18 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
     }
   }
 
-  const handleToggleEnabled = async (server: MCPServerConfig): Promise<void> => {
+  const handleToggleEnabled = async (server: MCPServerWithStatus): Promise<void> => {
     const result = await window.backend.updateMCPServer(server.id, {
       enabled: !server.enabled
     })
+
+    await loadServers()
 
     if (isOk(result)) {
       setMessage({
         type: 'success',
         text: `Server "${server.name}" ${!server.enabled ? 'enabled' : 'disabled'}`
       })
-      await loadServers()
     } else {
       logger.error('Failed to toggle server:', result.error)
       setMessage({
@@ -240,7 +272,7 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
     setEnvInput(envInput.filter((_, i) => i !== index))
   }
 
-  const getStatusBadge = (server: MCPServerConfig) => {
+  const getEnabledBadge = (server: MCPServerWithStatus) => {
     if (!server.enabled) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
@@ -256,6 +288,40 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
         Enabled
       </span>
     )
+  }
+
+  const getRuntimeStatusBadge = (server: MCPServerWithStatus) => {
+    const status = server.runtimeStatus.status
+    if (status === 'connected') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
+          <Link className="h-3 w-3" />
+          Connected
+        </span>
+      )
+    }
+    if (status === 'error') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+          <AlertCircle className="h-3 w-3" />
+          Error
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+        <ServerIcon className="h-3 w-3" />
+        Stopped
+      </span>
+    )
+  }
+
+  const formatStatusTimestamp = (timestamp: string): string => {
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) {
+      return timestamp
+    }
+    return date.toLocaleString()
   }
 
   return (
@@ -294,9 +360,10 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <h3 className="font-medium text-gray-900">{server.name}</h3>
-                        {getStatusBadge(server)}
+                        {getEnabledBadge(server)}
+                        {getRuntimeStatusBadge(server)}
                         {server.includeResources && (
                           <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
                             Resources as Tools
@@ -327,7 +394,34 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
                             {Object.keys(server.env).join(', ')}
                           </div>
                         )}
+                        <div>
+                          <span className="font-medium">Runtime updated:</span>{' '}
+                          {formatStatusTimestamp(server.runtimeStatus.updatedAt)}
+                        </div>
                       </div>
+                      {server.runtimeStatus.status === 'error' && (
+                        <div className="mt-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                          <div className="space-y-2 w-full">
+                            <div>
+                              <p className="font-medium">Last error</p>
+                              {server.runtimeStatus.error && (
+                                <p className="mt-1 whitespace-pre-wrap text-xs">
+                                  {server.runtimeStatus.error}
+                                </p>
+                              )}
+                              <p className="mt-1 text-[11px] opacity-80">
+                                Reported at {formatStatusTimestamp(server.runtimeStatus.updatedAt)}
+                              </p>
+                            </div>
+                            {server.runtimeStatus.errorDetails && (
+                              <pre className="w-full whitespace-pre-wrap rounded border border-red-100 bg-white/40 p-2 text-[11px] text-red-900 overflow-x-auto">
+                                {server.runtimeStatus.errorDetails}
+                              </pre>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <Button
@@ -502,7 +596,7 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
+            <Button variant="outline" onClick={() => handleCloseDialog()}>
               Cancel
             </Button>
             <Button onClick={handleSaveServer}>
