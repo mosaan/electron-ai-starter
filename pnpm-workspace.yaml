@@ -2,3 +2,5 @@ onlyBuiltDependencies:
   - '@swc/core'
   - electron
   - esbuild
+  - registry-js
+  - win-ca
