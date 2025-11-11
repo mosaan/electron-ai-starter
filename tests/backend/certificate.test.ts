@@ -34,6 +34,19 @@ vi.mock('../../src/backend/logger', () => ({
   }
 }))
 
+// Mock the db module to use test database
+let testDbInstance: any = null
+
+vi.mock('../../src/backend/db', async () => {
+  const actual = await vi.importActual('../../src/backend/db')
+  return {
+    ...actual,
+    get db() {
+      return testDbInstance
+    }
+  }
+})
+
 // Mock Windows certificate module
 vi.mock('../../src/backend/platform/windows/certificate', () => ({
   getWindowsCertificateSettings: vi.fn(async () => ({
@@ -71,7 +84,7 @@ vi.mock('win-ca', () => {
   }
 })
 
-import { setupDatabaseTest } from './database-helper'
+import { createTestDatabase } from './database-helper'
 import {
   getCertificateSettings,
   setCertificateSettings,
@@ -83,10 +96,9 @@ import {
 import type { CertificateSettings } from '../../src/common/types'
 
 describe('Certificate Settings Management', () => {
-  const getTestDatabase = setupDatabaseTest()
-
-  beforeEach(() => {
-    getTestDatabase()
+  beforeEach(async () => {
+    // Create a fresh test database for each test
+    testDbInstance = await createTestDatabase()
   })
 
   describe('getCertificateSettings', () => {

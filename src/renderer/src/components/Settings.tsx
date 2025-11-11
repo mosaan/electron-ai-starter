@@ -14,6 +14,7 @@ import {
 } from '@renderer/components/ui/card'
 import { AISettings } from './AISettings'
 import { ProxySettings } from './ProxySettings'
+import { MCPSettings } from './MCPSettings'
 import { CertificateSettings } from './CertificateSettings'
 
 interface SettingsProps {
@@ -219,6 +220,7 @@ export function Settings({ onBack }: SettingsProps): React.JSX.Element {
             </CardContent>
           </Card>
 
+          <MCPSettings className="shadow-sm" />
           <AISettings className="shadow-sm" />
 
           <ProxySettings className="shadow-sm" />

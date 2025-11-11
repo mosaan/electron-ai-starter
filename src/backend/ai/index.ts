@@ -32,7 +32,8 @@ export async function testConnection(config: AIConfig): Promise<boolean> {
 export async function streamText(
   config: AIConfig,
   messages: AIMessage[],
-  publishEvent: (channel: string, event: AppEvent) => void
+  publishEvent: (channel: string, event: AppEvent) => void,
+  tools?: Record<string, any>
 ): Promise<string> {
   // Create and store session
   const session = sessionStore.startSession()
@@ -40,7 +41,7 @@ export async function streamText(
   // Start streaming directly to session (handles everything in one function)
   streamSessionText(config, messages, session, publishEvent, () => {
     sessionStore.endSession(session.id)
-  })
+  }, tools)
 
   return session.id
 }

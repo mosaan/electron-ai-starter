@@ -23,16 +23,30 @@ vi.mock('../../src/backend/logger', () => ({
   }
 }))
 
-// Mock @cypress/get-windows-proxy module
-vi.mock('@cypress/get-windows-proxy', () => ({
-  getWindowsProxy: vi.fn(async () => ({
+// Mock the db module to use test database
+let testDbInstance: any = null
+
+vi.mock('../../src/backend/db', async () => {
+  const actual = await vi.importActual('../../src/backend/db')
+  return {
+    ...actual,
+    get db() {
+      return testDbInstance
+    }
+  }
+})
+
+// Mock Windows proxy module
+vi.mock('../../src/backend/platform/windows/proxy', () => ({
+  getWindowsProxySettings: vi.fn(async () => ({
+    mode: 'system' as const,
     httpProxy: 'http://proxy.example.com:8080',
     httpsProxy: 'https://proxy.example.com:8443',
-    noProxy: 'localhost;*.local'
+    noProxy: ['localhost', '*.local']
   }))
 }))
 
-import { setupDatabaseTest } from './database-helper'
+import { createTestDatabase } from './database-helper'
 import {
   getProxySettings,
   setProxySettings,
@@ -42,10 +56,9 @@ import {
 import type { ProxySettings } from '../../src/common/types'
 
 describe('Proxy Settings Management', () => {
-  const getTestDatabase = setupDatabaseTest()
-
-  beforeEach(() => {
-    getTestDatabase()
+  beforeEach(async () => {
+    // Create a fresh test database for each test
+    testDbInstance = await createTestDatabase()
   })
 
   describe('getProxySettings', () => {
