@@ -29,19 +29,34 @@ export async function streamSessionText(
 
     // Log MCP tools availability
     if (tools && tools.length > 0) {
-      logger.info(`Streaming with ${tools.length} MCP tool(s) available for session: ${session.id}`)
+      logger.info(`[MCP] ${tools.length} tool(s) available for session ${session.id}`)
+      tools.forEach(tool => {
+        logger.info(`[MCP] Tool: ${tool.name} - ${tool.description || 'No description'}`)
+      })
+    } else {
+      logger.info(`[MCP] No MCP tools available for session ${session.id}`)
     }
 
     const result = streamText({
       model,
       messages,
       temperature: 0.7,
-      abortSignal: session.abortSignal
-      // Note: MCP tools integration requires AI SDK update to properly support tool calling
-      // ...(tools && tools.length > 0 ? { tools: Object.fromEntries(tools.map(t => [t.name, t])) } : {})
+      abortSignal: session.abortSignal,
+      // Convert MCP tools array to AI SDK v5 format (Record<string, CoreTool>)
+      ...(tools && tools.length > 0 ? {
+        tools: Object.fromEntries(
+          tools.map(tool => [
+            tool.name,
+            {
+              description: tool.description || `MCP tool: ${tool.name}`,
+              parameters: tool.inputSchema
+            }
+          ])
+        )
+      } : {})
     })
 
-    logger.info(`AI response streaming started with ${config.provider} for session: ${session.id}`)
+    logger.info(`[AI] Response streaming started with ${config.provider} for session: ${session.id}`)
 
     for await (const chunk of result.textStream) {
       // Check if session was aborted

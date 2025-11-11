@@ -64,9 +64,10 @@ export class MCPManager {
     }
 
     try {
-      mcpLogger.info(`Starting MCP server: ${config.name}`, {
+      mcpLogger.info(`[START] Starting MCP server: ${config.name}`, {
         command: config.command,
-        args: config.args
+        args: config.args,
+        env: config.env ? Object.keys(config.env) : 'none'
       })
 
       const client = experimental_createMCPClient({
@@ -80,7 +81,14 @@ export class MCPManager {
 
       this.clients.set(serverId, client)
       this.serverStatus.set(serverId, { status: 'connected' })
-      mcpLogger.info(`Successfully started server: ${config.name}`)
+
+      // Try to get tools immediately to verify connection
+      try {
+        const tools = await client.getTools({ includeResources: config.includeResources })
+        mcpLogger.info(`[START] Successfully connected to ${config.name}: ${tools.length} tool(s) available`)
+      } catch (err) {
+        mcpLogger.warn(`[START] Server ${config.name} started but failed to get tools:`, err)
+      }
 
       return ok(undefined)
     } catch (err) {
@@ -396,27 +404,35 @@ export class MCPManager {
   async getAllTools(): Promise<MCPTool[]> {
     const allTools: MCPTool[] = []
 
-    mcpLogger.info('Gathering tools from all active MCP servers...')
+    mcpLogger.info(`[TOOLS] Gathering tools from ${this.clients.size} active MCP server(s)...`)
 
     for (const [serverId, client] of this.clients) {
       const config = this.serverConfigs.get(serverId)
-      if (!config) continue
+      if (!config) {
+        mcpLogger.warn(`[TOOLS] Server config not found for ${serverId}, skipping`)
+        continue
+      }
 
       try {
-        mcpLogger.info(`Getting tools from ${config.name} (includeResources: ${config.includeResources})`)
+        mcpLogger.info(`[TOOLS] Getting tools from "${config.name}" (includeResources: ${config.includeResources})`)
         const tools = await client.getTools({
           includeResources: config.includeResources
         })
 
-        mcpLogger.info(`Retrieved ${tools.length} tool(s) from ${config.name}`)
+        mcpLogger.info(`[TOOLS] Retrieved ${tools.length} tool(s) from "${config.name}"`)
+        if (tools.length > 0) {
+          tools.forEach(tool => {
+            mcpLogger.info(`[TOOLS]   - ${tool.name}: ${tool.description || 'No description'}`)
+          })
+        }
         allTools.push(...(tools as MCPTool[]))
       } catch (err) {
-        mcpLogger.error(`Failed to get tools from ${config.name}:`, err)
+        mcpLogger.error(`[TOOLS] Failed to get tools from "${config.name}":`, err)
         // Continue with other servers even if one fails
       }
     }
 
-    mcpLogger.info(`Total tools available: ${allTools.length}`)
+    mcpLogger.info(`[TOOLS] Total tools available: ${allTools.length}`)
     return allTools
   }
 
