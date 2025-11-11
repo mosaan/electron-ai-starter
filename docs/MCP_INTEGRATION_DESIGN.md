@@ -238,7 +238,7 @@ graph TB
 
 | チャンネル名 | 方向 | 説明 |
 |------------|------|------|
-| `listMCPServers` | Renderer → Backend | 登録済み MCP サーバー一覧取得 |
+| `listMCPServers` | Renderer → Backend | 登録済み MCP サーバー + ランタイム状態（`runtimeStatus`）取得 |
 | `addMCPServer` | Renderer → Backend | MCP サーバーを追加 |
 | `updateMCPServer` | Renderer → Backend | MCP サーバーを更新 |
 | `removeMCPServer` | Renderer → Backend | MCP サーバーを削除 |
@@ -246,7 +246,7 @@ graph TB
 | `getMCPTools` | Renderer → Backend | Tools 一覧取得 |
 | `getMCPPrompts` | Renderer → Backend | Prompts 一覧取得 |
 | `callMCPTool` | Renderer → Backend | Tool を実行 |
-| `mcpServerStatusChanged` | Backend → Renderer | サーバー接続状態の変化 (event) |
+| `mcpServerStatusChanged` | Backend → Renderer | サーバー接続状態・エラー詳細の変化 (event) |
 
 ### MCP サーバーのライフサイクル
 
@@ -741,7 +741,10 @@ const result = await window.backend.callMCPTool(
 ```typescript
 window.backend.onEvent('mcpServerStatusChanged', (event: AppEvent) => {
   const status = event.payload as MCPServerStatus
-  console.log(`Server ${status.serverId} is now ${status.connected ? 'connected' : 'disconnected'}`)
+  console.log(`Server ${status.serverId} is now ${status.status}`)
+  if (status.status === 'error' && status.errorDetails) {
+    console.error(status.errorDetails)
+  }
 })
 ```
 
@@ -795,6 +798,11 @@ Settings
 │                                                     │
 └─────────────────────────────────────────────────────┘
 ```
+#### Runtime diagnostics
+
+- Runtime badges show the live `runtimeStatus.status` (Connected / Stopped / Error) separately from the persistent Enabled toggle.
+- When status becomes `error`, the UI surfaces both `runtimeStatus.error` and the captured `runtimeStatus.errorDetails` so users can read stderr/exit information without leaving the app.
+
 
 **要素**:
 - サーバー名、説明
