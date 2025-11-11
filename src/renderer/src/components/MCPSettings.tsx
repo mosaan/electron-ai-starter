@@ -132,10 +132,12 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
     setShowDialog(true)
   }
 
-  const handleCloseDialog = (): void => {
+  const handleCloseDialog = (options?: { preserveMessage?: boolean }): void => {
     setShowDialog(false)
     setEditingServer(null)
-    setMessage(null)
+    if (!options?.preserveMessage) {
+      setMessage(null)
+    }
   }
 
   const handleSaveServer = async (): Promise<void> => {
@@ -172,16 +174,20 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
       includeResources: formData.includeResources
     }
 
-    if (editingServer) {
-      // Update existing server
-      const result = await window.backend.updateMCPServer(editingServer.id, serverConfig)
+    const serverName = formData.name
+    const isEdit = Boolean(editingServer)
+
+    setMessage(null)
+    handleCloseDialog({ preserveMessage: true })
+
+    if (isEdit) {
+      const result = await window.backend.updateMCPServer(editingServer!.id, serverConfig)
       await loadServers()
 
       if (isOk(result)) {
-        handleCloseDialog()
         setMessage({
           type: 'success',
-          text: `Server "${formData.name}" updated successfully`
+          text: `Server "${serverName}" updated successfully`
         })
       } else {
         logger.error('Failed to update server:', result.error)
@@ -191,15 +197,13 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
         })
       }
     } else {
-      // Add new server
       const result = await window.backend.addMCPServer(serverConfig)
       await loadServers()
 
       if (isOk(result)) {
-        handleCloseDialog()
         setMessage({
           type: 'success',
-          text: `Server "${formData.name}" added successfully`
+          text: `Server "${serverName}" added successfully`
         })
       } else {
         logger.error('Failed to add server:', result.error)
@@ -581,7 +585,7 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
+            <Button variant="outline" onClick={() => handleCloseDialog()}>
               Cancel
             </Button>
             <Button onClick={handleSaveServer}>
