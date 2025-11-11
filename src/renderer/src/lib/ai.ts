@@ -1,11 +1,16 @@
 import { logger } from '@renderer/lib/logger'
 import { isOk, isError } from '@common/result'
-import type { AIMessage, AppEvent } from '@common/types'
+import type { AIMessage, AppEvent, ToolCallPayload, ToolResultPayload } from '@common/types'
+
+export type StreamChunk =
+  | { type: 'text'; text: string }
+  | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown }
+  | { type: 'tool-result'; toolCallId: string; toolName: string; output: unknown }
 
 export async function streamText(
   messages: AIMessage[],
   abortSignal: AbortSignal
-): Promise<AsyncGenerator<string, void, unknown>> {
+): Promise<AsyncGenerator<StreamChunk, void, unknown>> {
   const result = await window.backend.streamAIText(messages)
 
   if (isOk(result)) {
@@ -20,10 +25,10 @@ export async function streamText(
 async function* receiveStream(
   sessionId: string,
   abortSignal: AbortSignal
-): AsyncGenerator<string, void, unknown> {
+): AsyncGenerator<StreamChunk, void, unknown> {
   let completed = false
   let error: string | null = null
-  let pendingChunks: string[] = []
+  let pendingChunks: StreamChunk[] = []
 
   // Promise-based chunk waiting
   let resolveYieldLoopBlocker: (() => void) | null = null
@@ -49,8 +54,34 @@ async function* receiveStream(
     const payload = appEvent.payload as { sessionId: string; chunk: string }
     if (payload.sessionId !== sessionId) return
     if (payload.chunk) {
-      pendingChunks.push(payload.chunk)
+      pendingChunks.push({ type: 'text', text: payload.chunk })
     }
+    unblockYieldLoop()
+  }
+
+  const handleToolCall = (appEvent: AppEvent): void => {
+    const payload = appEvent.payload as ToolCallPayload
+    if (payload.sessionId !== sessionId) return
+    logger.info('[MCP] Tool call received in renderer:', payload.toolName)
+    pendingChunks.push({
+      type: 'tool-call',
+      toolCallId: payload.toolCallId,
+      toolName: payload.toolName,
+      input: payload.input
+    })
+    unblockYieldLoop()
+  }
+
+  const handleToolResult = (appEvent: AppEvent): void => {
+    const payload = appEvent.payload as ToolResultPayload
+    if (payload.sessionId !== sessionId) return
+    logger.info('[MCP] Tool result received in renderer:', payload.toolName)
+    pendingChunks.push({
+      type: 'tool-result',
+      toolCallId: payload.toolCallId,
+      toolName: payload.toolName,
+      output: payload.output
+    })
     unblockYieldLoop()
   }
 
@@ -89,6 +120,8 @@ async function* receiveStream(
   try {
     // Set up event listeners directly from backend
     window.backend.onEvent('aiChatChunk', handleChunk)
+    window.backend.onEvent('aiToolCall', handleToolCall)
+    window.backend.onEvent('aiToolResult', handleToolResult)
     window.backend.onEvent('aiChatEnd', handleEnd)
     window.backend.onEvent('aiChatError', handleError)
     window.backend.onEvent('aiChatAborted', handleAborted)
@@ -123,6 +156,8 @@ async function* receiveStream(
   } finally {
     // Clean up event listeners - safe to call even if not set up
     window.backend.offEvent('aiChatChunk')
+    window.backend.offEvent('aiToolCall')
+    window.backend.offEvent('aiToolResult')
     window.backend.offEvent('aiChatEnd')
     window.backend.offEvent('aiChatError')
     window.backend.offEvent('aiChatAborted')
