@@ -60,7 +60,7 @@ vi.mock('win-ca', () => {
   )
 
   // Add der2 property for format constants
-  mockWinCa.der2 = {
+  ;(mockWinCa as any).der2 = {
     pem: 1,
     der: 0,
     txt: 2

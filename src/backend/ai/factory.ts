@@ -2,7 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { AIProvider } from '@common/types'
-import type { LanguageModelV1 } from 'ai'
+import type { LanguageModel } from 'ai'
 import { createCustomFetch } from './fetch'
 import logger from '../logger'
 
@@ -43,7 +43,7 @@ export async function createModel(
   provider: AIProvider,
   apiKey: string,
   model: string
-): Promise<LanguageModelV1> {
+): Promise<LanguageModel> {
   const config = FACTORY[provider]
 
   try {

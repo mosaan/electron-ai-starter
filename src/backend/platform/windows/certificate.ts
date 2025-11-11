@@ -84,7 +84,9 @@ export async function getWindowsCertificateSettings(): Promise<CertificateSettin
  * @param cert - Certificate as Buffer or string
  * @returns Certificate in PEM format
  */
-function bufferToPem(cert: Buffer | string): string {
+// @ts-ignore - Reserved for future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _bufferToPem(cert: Buffer | string): string {
   if (typeof cert === 'string') {
     // Already in string format, check if it has PEM markers
     if (cert.includes('BEGIN CERTIFICATE')) {
