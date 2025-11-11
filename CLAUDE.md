@@ -245,13 +245,13 @@ When creating or updating documentation that requires diagrams, flowcharts, or v
 
 **Example**:
 
-```markdown
+~~~markdown
 ```mermaid
 graph TB
     A[Start] --> B[Process]
     B --> C[End]
 ```
-```
+~~~
 
 - See `docs/FOR_DEVELOPERS.md` for examples of architecture diagrams and sequence diagrams
 - For complex UML diagrams, PlantUML is an acceptable alternative (requires additional tooling)
