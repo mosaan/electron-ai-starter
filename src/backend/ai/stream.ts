@@ -1,4 +1,4 @@
-import { streamText } from 'ai'
+import { streamText, stepCountIs } from 'ai'
 import logger from '../logger'
 import { createModel } from './factory'
 import type { AIMessage, AIConfig, AppEvent } from '@common/types'
@@ -43,13 +43,16 @@ export async function streamSessionText(
       messages,
       temperature: 0.7,
       abortSignal: session.abortSignal,
+      // Enable multi-step tool calling (up to 10 steps for complex scenarios)
+      stopWhen: stepCountIs(10),
       // MCP tools are already in AI SDK v5 format (Record<string, Tool>)
       ...(tools && toolCount > 0 ? { tools } : {})
     })
 
     logger.info(`[AI] Response streaming started with ${config.provider} for session: ${session.id}`)
 
-    for await (const chunk of result.textStream) {
+    // Use fullStream to access tool calls and results
+    for await (const chunk of result.fullStream) {
       // Check if session was aborted
       if (session.abortSignal.aborted) {
         logger.info(`Stream aborted during chunk processing for session: ${session.id}`)
@@ -59,10 +62,45 @@ export async function streamSessionText(
         })
         return
       }
-      publishEvent('aiChatChunk', {
-        type: EventType.Message,
-        payload: { sessionId: session.id, chunk }
-      })
+
+      // Handle different chunk types
+      switch (chunk.type) {
+        case 'text-delta':
+          // Send text chunks to renderer
+          publishEvent('aiChatChunk', {
+            type: EventType.Message,
+            payload: { sessionId: session.id, chunk: chunk.text }
+          })
+          break
+
+        case 'tool-call':
+          // Log tool call
+          logger.info(`[MCP] Tool called: ${chunk.toolName}`, {
+            toolCallId: chunk.toolCallId,
+            input: chunk.input
+          })
+          break
+
+        case 'tool-result':
+          // Log tool result
+          logger.info(`[MCP] Tool result received: ${chunk.toolName}`, {
+            toolCallId: chunk.toolCallId,
+            output: typeof chunk.output === 'string' ? chunk.output.substring(0, 200) : chunk.output
+          })
+          break
+
+        case 'finish':
+          // Log final finish
+          logger.info(`[AI] Stream finished`, {
+            finishReason: chunk.finishReason,
+            usage: chunk.totalUsage
+          })
+          break
+
+        case 'error':
+          logger.error(`[AI] Stream error:`, chunk.error)
+          break
+      }
     }
 
     // Signal end of stream if not aborted
