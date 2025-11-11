@@ -113,6 +113,7 @@ export interface RendererBackendAPI {
     proxySettings: ProxySettings,
     certSettings: CertificateSettings
   ) => Promise<Result<ConnectionTestResult>>
+  testFullConnection: () => Promise<Result<ConnectionTestResult, string>>
 }
 
 export interface RendererMainAPI {

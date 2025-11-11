@@ -36,6 +36,7 @@ export class Server {
     testProxyConnection: (...args) => this._invoke('testProxyConnection', ...args),
     testCertificateConnection: (...args) => this._invoke('testCertificateConnection', ...args),
     testCombinedConnection: (...args) => this._invoke('testCombinedConnection', ...args),
+    testFullConnection: (...args) => this._invoke('testFullConnection', ...args),
     onEvent: (channel: string, callback: (appEvent: AppEvent) => void) => {
       this._backendConnection!.onEvent(channel, callback)
     },

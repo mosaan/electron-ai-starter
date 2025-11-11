@@ -15,8 +15,8 @@ import {
   CardHeader,
   CardTitle
 } from '@renderer/components/ui/card'
-import { CheckCircle, Loader2, RefreshCw, FileText, XCircle } from 'lucide-react'
-import type { CertificateSettings, CertificateMode, ConnectionTestResult } from '@common/types'
+import { CheckCircle, Loader2, RefreshCw, FileText } from 'lucide-react'
+import type { CertificateSettings, CertificateMode } from '@common/types'
 import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
 
@@ -32,11 +32,7 @@ export function CertificateSettings({
   const [rejectUnauthorized, setRejectUnauthorized] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingSystem, setIsLoadingSystem] = useState(false)
-  const [isTesting, setIsTesting] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [testSuccess, setTestSuccess] = useState(false)
-  const [testError, setTestError] = useState(false)
-  const [testMessage, setTestMessage] = useState<string>('')
 
   const loadSettings = useCallback(async (): Promise<void> => {
     try {
@@ -115,75 +111,6 @@ export function CertificateSettings({
     }
   }
 
-  const testConnection = async (): Promise<void> => {
-    setIsTesting(true)
-    setTestSuccess(false)
-    setTestError(false)
-    setTestMessage('')
-
-    try {
-      // Get current settings to test
-      const currentResult = await window.backend.getCertificateSettings()
-      const currentSettings: CertificateSettings = isOk(currentResult)
-        ? currentResult.value
-        : { mode: 'none' }
-
-      const settings: CertificateSettings = {
-        mode,
-        rejectUnauthorized,
-        customCertificates:
-          mode === 'custom' ? currentSettings.customCertificates : undefined
-      }
-
-      const result = await window.backend.testCertificateConnection(settings)
-
-      if (isOk(result)) {
-        const testResult: ConnectionTestResult = result.value
-        if (testResult.success) {
-          setTestSuccess(true)
-          setTestMessage(
-            `${testResult.message}${testResult.details?.responseTime ? ` (${testResult.details.responseTime}ms)` : ''}`
-          )
-          setTimeout(() => {
-            setTestSuccess(false)
-            setTestMessage('')
-          }, 5000)
-        } else {
-          setTestError(true)
-          let errorMsg = testResult.message
-          if (testResult.details?.error) {
-            errorMsg += `\n\nDetails: ${testResult.details.error}`
-          }
-          if (testResult.details?.errorType) {
-            errorMsg += `\nType: ${testResult.details.errorType}`
-          }
-          setTestMessage(errorMsg)
-          setTimeout(() => {
-            setTestError(false)
-            setTestMessage('')
-          }, 8000)
-        }
-      } else {
-        setTestError(true)
-        setTestMessage('Failed to test connection')
-        setTimeout(() => {
-          setTestError(false)
-          setTestMessage('')
-        }, 5000)
-      }
-    } catch (error) {
-      logger.error('Failed to test certificate connection:', error)
-      setTestError(true)
-      setTestMessage(`Error: ${error instanceof Error ? error.message : String(error)}`)
-      setTimeout(() => {
-        setTestError(false)
-        setTestMessage('')
-      }, 5000)
-    } finally {
-      setIsTesting(false)
-    }
-  }
-
   useEffect(() => {
     loadSettings()
   }, [loadSettings])
@@ -256,41 +183,6 @@ export function CertificateSettings({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button
-              onClick={testConnection}
-              disabled={isTesting}
-              variant={
-                testSuccess ? 'default' : testError ? 'destructive' : 'outline'
-              }
-              size="sm"
-              className={
-                testSuccess
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : testError
-                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                    : ''
-              }
-            >
-              {isTesting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Testing...
-                </>
-              ) : testSuccess ? (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  Connected!
-                </>
-              ) : testError ? (
-                <>
-                  <XCircle className="h-4 w-4" />
-                  Failed
-                </>
-              ) : (
-                'Test Connection'
-              )}
-            </Button>
-
             {mode === 'system' && (
               <Button
                 onClick={loadSystemSettings}
@@ -335,18 +227,6 @@ export function CertificateSettings({
             )}
           </Button>
         </div>
-
-        {testMessage && (
-          <div
-            className={`mt-2 p-3 rounded-md text-sm ${
-              testSuccess
-                ? 'bg-green-50 text-green-800 border border-green-200'
-                : 'bg-orange-50 text-orange-800 border border-orange-200'
-            }`}
-          >
-            <div className="whitespace-pre-wrap">{testMessage}</div>
-          </div>
-        )}
       </CardContent>
     </Card>
   )

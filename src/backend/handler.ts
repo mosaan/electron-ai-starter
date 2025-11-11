@@ -1,6 +1,6 @@
 import { Connection } from '@common/connection'
 import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent, ProxySettings, CertificateSettings, ConnectionTestResult } from '@common/types'
-import { ok } from '@common/result'
+import { ok, error, isOk } from '@common/result'
 import { dirname } from 'path'
 import { getSetting, setSetting, getAllSettings, clearSetting } from './settings'
 import { getDatabasePath, getLogPath } from './paths'
@@ -166,6 +166,19 @@ export class Handler {
     certSettings: CertificateSettings
   ): Promise<Result<ConnectionTestResult>> {
     const result = await testCombinedConnection(proxySettings, certSettings)
+    return ok(result)
+  }
+
+  async testFullConnection(): Promise<Result<ConnectionTestResult, string>> {
+    // Get current proxy and certificate settings
+    const proxyResult = await this.getProxySettings()
+    const certResult = await this.getCertificateSettings()
+
+    if (!isOk(proxyResult) || !isOk(certResult)) {
+      return error('Failed to load current settings')
+    }
+
+    const result = await testCombinedConnection(proxyResult.value, certResult.value)
     return ok(result)
   }
 }
