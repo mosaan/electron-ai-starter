@@ -1,6 +1,7 @@
 import { Connection } from '@common/connection'
 import type { MessagePortMain } from 'electron'
-import type { BackendMainAPI } from '@common/types'
+import type { BackendMainAPI, MCPServerStatus } from '@common/types'
+import { EventType } from '@common/types'
 import { Handler } from './handler'
 import logger from './logger'
 import { db, runMigrations, ensureConnection } from './db'
@@ -27,6 +28,10 @@ export class Server {
 
     // Initialize MCP Manager - auto-starts enabled servers
     await mcpManager.initialize()
+
+    mcpManager.onStatusChange((status) => {
+      this._publishMcpStatus(status)
+    })
   }
 
   /**
@@ -45,6 +50,15 @@ export class Server {
     })
 
     logger.info('Renderer Connected')
+
+    // Send current MCP statuses so renderer has an immediate snapshot
+    for (const status of mcpManager.getAllServerStatuses()) {
+      connection.publishEvent('mcpServerStatusChanged', {
+        type: EventType.Status,
+        payload: status
+      })
+    }
+
     return connection
   }
 
@@ -56,6 +70,19 @@ export class Server {
     return {
       osEncrypt: (...args) => this._invokeMain('osEncrypt', ...args),
       osDecrypt: (...args) => this._invokeMain('osDecrypt', ...args)
+    }
+  }
+
+  private _publishMcpStatus(status: MCPServerStatus): void {
+    const event = {
+      type: EventType.Status,
+      payload: status
+    }
+
+    for (const connection of this._rendererConnections) {
+      if (connection?.isConnected()) {
+        connection.publishEvent('mcpServerStatusChanged', event)
+      }
     }
   }
 }

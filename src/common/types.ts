@@ -99,7 +99,7 @@ export interface RendererBackendAPI {
   getAIModels: (provider: AIProvider) => Promise<Result<string[]>>
   testAIProviderConnection: (config: AIConfig) => Promise<Result<boolean>>
   // MCP Server Management
-  listMCPServers: () => Promise<Result<MCPServerConfig[]>>
+  listMCPServers: () => Promise<Result<MCPServerWithStatus[]>>
   addMCPServer: (config: Omit<MCPServerConfig, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Result<string>>
   updateMCPServer: (serverId: string, updates: Partial<MCPServerConfig>) => Promise<Result<void>>
   removeMCPServer: (serverId: string) => Promise<Result<void>>
@@ -149,6 +149,11 @@ export interface MCPServerStatus {
   serverId: string
   status: 'connected' | 'stopped' | 'error'
   error?: string
+  updatedAt: string
+}
+
+export interface MCPServerWithStatus extends MCPServerConfig {
+  runtimeStatus: MCPServerStatus
 }
 
 // MCP Resource (read-only data)

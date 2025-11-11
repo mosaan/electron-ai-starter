@@ -1,5 +1,20 @@
 import { Connection } from '@common/connection'
-import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent, MCPServerConfig, MCPResource, MCPTool, MCPPrompt, ProxySettings, CertificateSettings, ConnectionTestResult } from '@common/types'
+import type {
+  Result,
+  AIProvider,
+  AIConfig,
+  AISettings,
+  AIMessage,
+  AppEvent,
+  MCPServerConfig,
+  MCPResource,
+  MCPTool,
+  MCPPrompt,
+  ProxySettings,
+  CertificateSettings,
+  ConnectionTestResult,
+  MCPServerWithStatus
+} from '@common/types'
 import { ok, error, isOk } from '@common/result'
 import { dirname } from 'path'
 import { getSetting, setSetting, getAllSettings, clearSetting } from './settings'
@@ -194,7 +209,7 @@ export class Handler {
   }
 
   // MCP Server Management
-  async listMCPServers(): Promise<Result<MCPServerConfig[], string>> {
+  async listMCPServers(): Promise<Result<MCPServerWithStatus[], string>> {
     return await mcpManager.listServers()
   }
 
