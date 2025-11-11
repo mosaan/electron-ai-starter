@@ -4,9 +4,11 @@ import type { AIMessage, AppEvent } from '@common/types'
 
 export async function streamText(
   messages: AIMessage[],
-  abortSignal: AbortSignal
+  abortSignal: AbortSignal,
+  presetId: string | null = null
 ): Promise<AsyncGenerator<string, void, unknown>> {
-  const result = await window.backend.streamAIText(messages)
+  const options = presetId ? { presetId } : undefined
+  const result = await window.backend.streamAIText(messages, options)
 
   if (isOk(result)) {
     const sessionId = result.value

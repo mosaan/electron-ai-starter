@@ -1,13 +1,29 @@
+import { useState, useEffect } from 'react'
 import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { Thread } from '@renderer/components/assistant-ui/thread'
 import { AIRuntimeProvider } from '@renderer/components/AIRuntimeProvider'
+import { PresetSelector } from '@renderer/components/PresetSelector'
 
 interface ChatPageProps {
   onBack: () => void
 }
 
+const LAST_PRESET_KEY = 'ai-last-used-preset'
+
 export function ChatPage({ onBack }: ChatPageProps): React.JSX.Element {
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(() => {
+    // Load last-used preset from localStorage
+    return localStorage.getItem(LAST_PRESET_KEY)
+  })
+
+  // Persist preset selection to localStorage
+  useEffect(() => {
+    if (selectedPresetId) {
+      localStorage.setItem(LAST_PRESET_KEY, selectedPresetId)
+    }
+  }, [selectedPresetId])
+
   return (
     <div className="h-screen bg-background flex flex-col">
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,11 +39,16 @@ export function ChatPage({ onBack }: ChatPageProps): React.JSX.Element {
               <h1 className="text-lg font-semibold">AI Assistant</h1>
             </div>
           </div>
+
+          <PresetSelector
+            selectedPresetId={selectedPresetId}
+            onPresetChange={setSelectedPresetId}
+          />
         </div>
       </header>
 
       <main className="flex-1 overflow-hidden">
-        <AIRuntimeProvider>
+        <AIRuntimeProvider presetId={selectedPresetId}>
           <Thread />
         </AIRuntimeProvider>
       </main>
