@@ -304,9 +304,9 @@ This document will be updated after each phase to track:
 - ✅ Phase 0: Analysis and planning complete
 - ✅ Phase 1: Backend - Database Schema v2 (Commits 082be4b, 0dd8851)
 - ✅ Phase 2: Backend - Preset-based API (Commit 2b6bd44)
-- ✅ Phase 3: Settings UI - Provider Configuration (Commits 032d62f, 89b6bfb, c1b3b0c)
-- ⏳ Phase 4: Chat UI - Preset Selector (Not Started)
-- ⏳ Phase 5: Testing and Documentation (Not Started)
+- ✅ Phase 3: Settings UI - Provider Configuration (Commits 032d62f, 89b6bfb, c1b3b0c, dce6bbe, 626a517)
+- ✅ Phase 4: Chat UI - Preset Selector (Commit 37d12fc)
+- ⏳ Phase 5: Testing and Documentation (In Progress)
 
 ### Completed Work
 
@@ -358,6 +358,16 @@ This document will be updated after each phase to track:
 - Updated CLAUDE.md with package installation error handling rules
 - Documented requirement to consult user before custom implementations
 - Prevents architectural deviations from network errors
+
+#### Phase 4: Chat UI - Preset Selector
+**Commit 37d12fc**: Added preset selector to chat interface
+- Created PresetSelector component with dropdown UI
+- Integrated preset selection into ChatPage header
+- Passed presetId through AIRuntimeProvider to streaming logic
+- Extended streamText() to accept and pass presetId to backend
+- Implemented localStorage persistence for last-used preset
+- Display disabled state for unconfigured providers
+- Show default preset with star (⭐) icon indicator
 
 ## Technical Decisions
 
