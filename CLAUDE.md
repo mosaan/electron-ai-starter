@@ -54,6 +54,7 @@ src/
 ├── main/           # Electron main process entry point
 ├── backend/        # Backend business logic (separate from main)
 │   ├── ai/         # AI provider factory, streaming, session management
+│   ├── mcp/        # MCP server lifecycle management
 │   ├── db/         # Database schema, migrations, connection
 │   ├── settings/   # Application settings management
 │   ├── paths/      # Path configuration utilities
@@ -120,6 +121,10 @@ The configuration uses New York style with Lucide icons and neutral base color.
 
 - **Multi-provider factory**: Support for OpenAI, Anthropic (Claude), and Google (Gemini)
 - **Streaming architecture**: Real-time text streaming with session management
+- **MCP Integration**: External tool calling via Model Context Protocol
+  - Multi-step tool execution with automatic chaining
+  - Multiple MCP server support
+  - See `docs/MCP_INTEGRATION_DESIGN.md` for implementation details
 - **Provider configurations**: Model lists, API key management, connection testing
 - **Assistant UI components**: Pre-built chat interface with streaming support
 - **Configuration**: AI settings stored in database and configurable via UI
@@ -129,55 +134,22 @@ The configuration uses New York style with Lucide icons and neutral base color.
 
 The application supports enterprise network environments with comprehensive proxy and certificate management:
 
-- **Proxy support**:
-  - System proxy detection (Windows) - reads from Windows registry
-  - Custom proxy configuration with authentication (username/password)
-  - HTTP/HTTPS proxy support with undici ProxyAgent
-  - Proxy bypass rules (No Proxy lists)
-  - Automatic fallback to 'none' mode if no proxy configured
-- **Certificate support**:
-  - System certificate store integration (Windows) - uses win-ca library
-  - Custom CA certificates (PEM format)
-  - Certificate validation control (rejectUnauthorized option)
-  - Automatic initialization to system mode on first launch
-- **Connection testing**: Built-in test functionality to verify proxy and certificate settings
-  - Tests real HTTP/HTTPS connections to google.com
-  - Categorizes errors (proxy/certificate/network/timeout/unknown)
-  - Displays response time and detailed error messages
-- **Configuration UI**: User-friendly settings interface with real-time validation
-  - System/Custom/None mode selection
-  - Live feedback on save/load operations
-  - Test Connection button with success/error indicators
-- **Error handling**: Detailed error messages with categorization and troubleshooting hints
-
-**Key Implementation Details**:
-- Custom fetch factory (`src/backend/ai/fetch.ts`) uses Node.js built-in fetch + undici ProxyAgent
-- Settings stored in database and applied to all AI API requests
-- IPC-based configuration sync between renderer and backend
-- Connection tests make real HTTP/HTTPS requests to verify settings
-- Platform-specific modules for Windows (`src/backend/platform/windows/`)
-- Full TypeScript type safety across IPC boundaries
-
-**Supported Platforms**:
-- ✅ Windows (fully tested on Windows 11)
-- ⚠️ macOS (planned for future, currently defaults to 'none' mode)
-- ⚠️ Linux (planned for future, currently defaults to 'none' mode)
-
-**Known Limitations**:
-- ⚠️ **PAC (Proxy Auto-Config) files are not currently supported**
-  - If Windows is configured with "Use setup script" (AutoConfigURL), system proxy mode will not work
-  - Workaround: Manually identify proxy URL from PAC file and configure using Custom mode
-  - See `docs/PROXY_CONFIGURATION.md` for detailed workaround instructions
-- ⚠️ NTLM/Kerberos proxy authentication not supported (Basic authentication only)
+- **Proxy support**: System detection (Windows registry), custom configuration with authentication, HTTP/HTTPS support
+- **Certificate support**: System certificate store integration (Windows), custom CA certificates, validation control
+- **Configuration modes**: System (auto-detect), Custom (manual), None (direct connection)
+- **Connection testing**: Built-in verification with detailed error categorization
+- **Platform support**:
+  - ✅ Windows (fully tested)
+  - ⚠️ macOS/Linux (planned, currently defaults to 'none' mode)
+  - ⚠️ PAC files not currently supported (see workaround in docs)
 
 **Usage**:
-1. On first launch, system proxy and certificate settings are automatically detected and saved
-2. Open Settings page to view or modify proxy/certificate configuration
-3. Choose mode: System (auto-detect), Custom (manual), or None (direct connection)
-4. Use "Test Connection" to verify settings work correctly
-5. All AI API requests automatically use configured settings
+1. System proxy/certificate settings auto-detected on first launch
+2. Configure via Settings page (System/Custom/None modes)
+3. Use "Test Connection" to verify configuration
+4. All AI API requests automatically use configured settings
 
-For detailed configuration instructions and troubleshooting, see `docs/PROXY_CONFIGURATION.md`.
+For detailed configuration instructions, see `docs/PROXY_CONFIGURATION.md`.
 For technical design details, see `docs/PROXY_AND_CERTIFICATE_DESIGN.md`.
 
 ### Logging Configuration
@@ -245,9 +217,10 @@ For technical design details, see `docs/PROXY_AND_CERTIFICATE_DESIGN.md`.
 - `better-sqlite3` - SQLite driver
 
 ### AI Integration
-- `ai` - AI SDK for streaming and chat
+- `ai` (v5) - AI SDK for streaming and chat
+- `@ai-sdk/mcp` - MCP server integration
 - `@ai-sdk/anthropic` - Anthropic provider
-- `@ai-sdk/openai` - OpenAI provider  
+- `@ai-sdk/openai` - OpenAI provider
 - `@ai-sdk/google` - Google provider
 - `@assistant-ui/react` - Chat UI components
 
