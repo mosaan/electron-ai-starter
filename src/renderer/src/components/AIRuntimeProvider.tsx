@@ -18,11 +18,54 @@ const AIModelAdapter: ChatModelAdapter = {
     logger.info(`Starting AI stream with ${formattedMessages.length} messages`)
     const stream = await streamText(formattedMessages, abortSignal)
 
-    const contentChunks: string[] = []
+    const textChunks: string[] = []
+    const contentParts: any[] = []
+
     for await (const chunk of stream) {
       if (abortSignal?.aborted) return
-      contentChunks.push(chunk)
-      yield { content: [{ type: 'text', text: contentChunks.join('') }] }
+
+      if (chunk.type === 'text') {
+        textChunks.push(chunk.text)
+        // Update content parts with accumulated text
+        const textContent = textChunks.join('')
+        const parts = [...contentParts]
+
+        // Update or add text part
+        const textPartIndex = parts.findIndex((p) => p.type === 'text')
+        if (textPartIndex >= 0) {
+          parts[textPartIndex] = { type: 'text', text: textContent }
+        } else {
+          parts.push({ type: 'text', text: textContent })
+        }
+
+        yield { content: parts }
+      } else if (chunk.type === 'tool-call') {
+        logger.info('[MCP] Yielding tool-call:', chunk.toolName)
+        // Add tool-call part
+        contentParts.push({
+          type: 'tool-call',
+          toolCallId: chunk.toolCallId,
+          toolName: chunk.toolName,
+          args: chunk.input,
+          argsText: JSON.stringify(chunk.input, null, 2)
+        })
+        yield { content: [...contentParts, { type: 'text', text: textChunks.join('') }] }
+      } else if (chunk.type === 'tool-result') {
+        logger.info('[MCP] Yielding tool-result:', chunk.toolName)
+        // Find and update corresponding tool-call with result
+        const toolCallIndex = contentParts.findIndex(
+          (p) => p.type === 'tool-call' && p.toolCallId === chunk.toolCallId
+        )
+
+        if (toolCallIndex >= 0) {
+          contentParts[toolCallIndex] = {
+            ...contentParts[toolCallIndex],
+            result: chunk.output
+          }
+        }
+
+        yield { content: [...contentParts, { type: 'text', text: textChunks.join('') }] }
+      }
     }
 
     logger.info('AI stream completed')
