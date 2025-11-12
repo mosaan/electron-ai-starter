@@ -71,10 +71,18 @@ export function ChatPage({ onSettings }: ChatPageProps): React.JSX.Element {
           </div>
 
           <div className="flex items-center gap-3">
-            <ModelSelector
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-            />
+            <div className="flex items-center gap-2">
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+              />
+              {hasAvailableModels && !selectedModel && (
+                <div className="flex items-center gap-1 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Not selected</span>
+                </div>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -87,7 +95,7 @@ export function ChatPage({ onSettings }: ChatPageProps): React.JSX.Element {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden flex flex-col">
         {!hasProviderConfigs ? (
           <div className="h-full flex items-center justify-center p-4">
             <Alert variant="destructive" className="max-w-md">
@@ -119,20 +127,32 @@ export function ChatPage({ onSettings }: ChatPageProps): React.JSX.Element {
               </AlertDescription>
             </Alert>
           </div>
-        ) : !selectedModel ? (
-          <div className="h-full flex items-center justify-center p-4">
-            <Alert className="max-w-md">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>No Model Selected</AlertTitle>
-              <AlertDescription className="mt-2">
-                <p>Please select a model from the dropdown above to start chatting.</p>
-              </AlertDescription>
-            </Alert>
-          </div>
         ) : (
-          <AIRuntimeProvider modelSelection={selectedModel}>
-            <Thread />
-          </AIRuntimeProvider>
+          <>
+            {!selectedModel && (
+              <Alert variant="destructive" className="m-4 mb-0">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Model Not Selected</AlertTitle>
+                <AlertDescription>
+                  Please select a model from the dropdown above to start chatting.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="flex-1 overflow-hidden">
+              {selectedModel ? (
+                <AIRuntimeProvider modelSelection={selectedModel}>
+                  <Thread />
+                </AIRuntimeProvider>
+              ) : (
+                <div className="h-full flex items-center justify-center p-4 text-gray-400">
+                  <div className="text-center space-y-2">
+                    <AlertCircle className="h-12 w-12 mx-auto opacity-50" />
+                    <p className="text-lg">Select a model to start chatting</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
     </div>
