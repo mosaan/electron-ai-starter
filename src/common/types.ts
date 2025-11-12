@@ -201,9 +201,10 @@ export interface BackendListenerAPI {
 
 // Options for AI text streaming
 export interface StreamAIOptions {
-  presetId?: string             // Use specific preset
-  provider?: AIProvider         // Override provider
-  model?: string                // Override model
+  modelSelection?: AIModelSelection  // V3: Use specific model selection (providerConfigId + modelId)
+  presetId?: string                  // V2: Use specific preset (deprecated, for backward compatibility)
+  provider?: AIProvider              // Override provider
+  model?: string                     // Override model
   parameters?: Record<string, unknown>  // Override parameters
 }
 

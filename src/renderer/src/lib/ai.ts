@@ -1,13 +1,13 @@
 import { logger } from '@renderer/lib/logger'
 import { isOk, isError } from '@common/result'
-import type { AIMessage, AppEvent } from '@common/types'
+import type { AIMessage, AIModelSelection, AppEvent } from '@common/types'
 
 export async function streamText(
   messages: AIMessage[],
   abortSignal: AbortSignal,
-  presetId: string | null = null
+  modelSelection: AIModelSelection | null = null
 ): Promise<AsyncGenerator<string, void, unknown>> {
-  const options = presetId ? { presetId } : undefined
+  const options = modelSelection ? { modelSelection } : undefined
   const result = await window.backend.streamAIText(messages, options)
 
   if (isOk(result)) {

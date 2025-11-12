@@ -108,82 +108,134 @@ export class Handler {
 
   // AI handlers
   async streamAIText(messages: AIMessage[], options?: StreamAIOptions): Promise<Result<string>> {
-    // Load v2 settings (auto-migrates from v1 if needed)
-    const settingsV2 = await loadAISettingsV2()
-
-    let selectedPreset: AIModelPreset | undefined
     let selectedProvider: AIProvider
     let selectedModel: string
     let apiKey: string
+    let providerConfig: AIProviderConfig | AzureProviderConfig | undefined
 
-    // Resolution logic: preset ID → explicit provider/model → default preset → first available preset
-    if (options?.presetId) {
+    // Resolution logic: V3 modelSelection → V2 preset ID → explicit provider/model → default preset → first available preset
+
+    // V3: Check for modelSelection first
+    if (options?.modelSelection) {
+      const settingsV3 = await loadAISettingsV3()
+      const { providerConfigId, modelId } = options.modelSelection
+
+      // Find the provider configuration
+      const config = settingsV3.providerConfigs.find(c => c.id === providerConfigId)
+      if (!config) {
+        throw new Error(`Provider configuration not found: ${providerConfigId}`)
+      }
+      if (!config.enabled) {
+        throw new Error(`Provider configuration is disabled: ${config.name}`)
+      }
+
+      // Find the model
+      const model = config.models.find(m => m.id === modelId)
+      if (!model) {
+        throw new Error(`Model not found in configuration: ${modelId}`)
+      }
+
+      // Validate API key
+      if (!config.config.apiKey) {
+        throw new Error(`API key not configured for: ${config.name}`)
+      }
+
+      selectedProvider = config.type as AIProvider
+      selectedModel = model.id
+      apiKey = config.config.apiKey
+      providerConfig = config.config
+
+      logger.info(`V3: Using model selection: ${config.name} (${providerConfigId}) - ${model.displayName || model.id}`)
+    }
+    // V2: Fall back to preset-based resolution
+    else if (options?.presetId) {
+      // Load v2 settings (auto-migrates from v1 if needed)
+      const settingsV2 = await loadAISettingsV2()
+      let selectedPreset: AIModelPreset | undefined
       // Use specified preset
       selectedPreset = settingsV2.presets.find(p => p.id === options.presetId)
       if (!selectedPreset) {
         throw new Error(`Preset not found: ${options.presetId}`)
       }
       logger.info(`Using preset: ${selectedPreset.name} (${selectedPreset.id})`)
-    } else if (options?.provider) {
-      // Use explicit provider/model override
-      selectedProvider = options.provider
-      selectedModel = options.model || FACTORY[selectedProvider].default
 
-      logger.info(`Using explicit provider override: ${selectedProvider} - ${selectedModel}`)
-    } else if (settingsV2.defaultPresetId) {
-      // Use default preset
-      selectedPreset = settingsV2.presets.find(p => p.id === settingsV2.defaultPresetId)
-      if (!selectedPreset) {
-        throw new Error(`Default preset not found: ${settingsV2.defaultPresetId}`)
-      }
-      logger.info(`Using default preset: ${selectedPreset.name}`)
-    } else if (settingsV2.presets.length > 0) {
-      // Use first available preset with valid API key
-      for (const preset of settingsV2.presets) {
-        const providerConfig = settingsV2.providers[preset.provider]
-        if (providerConfig?.apiKey) {
-          selectedPreset = preset
-          break
-        }
-      }
-      if (!selectedPreset) {
-        throw new Error('No preset with valid API key found')
-      }
-      logger.info(`Using first available preset: ${selectedPreset.name}`)
-    } else {
-      // Fallback to v1 settings if no presets
-      logger.warn('No v2 presets found, falling back to v1 settings')
-      const aiSettings = await getSetting<AISettings>('ai')
-      if (!aiSettings?.default_provider) {
-        throw new Error('No AI provider configured')
-      }
-
-      selectedProvider = aiSettings.default_provider
-      const apiKeyField = `${selectedProvider}_api_key` as keyof AISettings
-      apiKey = aiSettings[apiKeyField] as string
-
-      if (!apiKey) {
-        throw new Error(`API key not found for provider: ${selectedProvider}`)
-      }
-
-      const modelField = `${selectedProvider}_model` as keyof AISettings
-      selectedModel = (aiSettings[modelField] as string) || FACTORY[selectedProvider].default
-    }
-
-    // Extract provider, model, and API key from preset
-    if (selectedPreset) {
+      // Extract provider, model, and API key from preset
       selectedProvider = selectedPreset.provider
       selectedModel = selectedPreset.model
 
-      const providerConfig = settingsV2.providers[selectedProvider]
-      if (!providerConfig?.apiKey) {
+      const presetProviderConfig = settingsV2.providers[selectedProvider]
+      if (!presetProviderConfig?.apiKey) {
         throw new Error(`API key not configured for provider: ${selectedProvider}`)
       }
-      apiKey = providerConfig.apiKey
-    }
+      apiKey = presetProviderConfig.apiKey
+      providerConfig = presetProviderConfig
+    } else {
+      // Load v2 settings for remaining resolution logic
+      const settingsV2 = await loadAISettingsV2()
+      let selectedPreset: AIModelPreset | undefined
 
-    // Get provider configuration (for baseURL, etc.)
-    const providerConfig = settingsV2.providers[selectedProvider!]
+      if (options?.provider) {
+        // Use explicit provider/model override
+        selectedProvider = options.provider
+        selectedModel = options.model || FACTORY[selectedProvider].default
+
+        logger.info(`Using explicit provider override: ${selectedProvider} - ${selectedModel}`)
+      } else if (settingsV2.defaultPresetId) {
+        // Use default preset
+        selectedPreset = settingsV2.presets.find(p => p.id === settingsV2.defaultPresetId)
+        if (!selectedPreset) {
+          throw new Error(`Default preset not found: ${settingsV2.defaultPresetId}`)
+        }
+        logger.info(`Using default preset: ${selectedPreset.name}`)
+      } else if (settingsV2.presets.length > 0) {
+        // Use first available preset with valid API key
+        for (const preset of settingsV2.presets) {
+          const presetProviderConfig = settingsV2.providers[preset.provider]
+          if (presetProviderConfig?.apiKey) {
+            selectedPreset = preset
+            break
+          }
+        }
+        if (!selectedPreset) {
+          throw new Error('No preset with valid API key found')
+        }
+        logger.info(`Using first available preset: ${selectedPreset.name}`)
+      } else {
+        // Fallback to v1 settings if no presets
+        logger.warn('No v2 presets found, falling back to v1 settings')
+        const aiSettings = await getSetting<AISettings>('ai')
+        if (!aiSettings?.default_provider) {
+          throw new Error('No AI provider configured')
+        }
+
+        selectedProvider = aiSettings.default_provider
+        const apiKeyField = `${selectedProvider}_api_key` as keyof AISettings
+        apiKey = aiSettings[apiKeyField] as string
+
+        if (!apiKey) {
+          throw new Error(`API key not found for provider: ${selectedProvider}`)
+        }
+
+        const modelField = `${selectedProvider}_model` as keyof AISettings
+        selectedModel = (aiSettings[modelField] as string) || FACTORY[selectedProvider].default
+      }
+
+      // Extract provider, model, and API key from preset (if using preset-based resolution)
+      if (selectedPreset) {
+        selectedProvider = selectedPreset.provider
+        selectedModel = selectedPreset.model
+
+        const presetProviderConfig = settingsV2.providers[selectedProvider]
+        if (!presetProviderConfig?.apiKey) {
+          throw new Error(`API key not configured for provider: ${selectedProvider}`)
+        }
+        apiKey = presetProviderConfig.apiKey
+        providerConfig = presetProviderConfig
+      } else if (!providerConfig) {
+        // Get provider configuration for explicit overrides
+        providerConfig = settingsV2.providers[selectedProvider!]
+      }
+    }
 
     // Create config object
     const config: AIConfig = {

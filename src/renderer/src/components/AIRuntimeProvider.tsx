@@ -3,15 +3,16 @@ import type { ChatModelAdapter, ThreadMessage } from '@assistant-ui/react'
 import { ReactNode } from 'react'
 import { logger } from '@renderer/lib/logger'
 import { streamText } from '@renderer/lib/ai'
+import type { AIModelSelection } from '@common/types'
 
 interface AIRuntimeProviderProps {
   children: ReactNode
-  presetId: string | null
+  modelSelection: AIModelSelection | null
 }
 
-export function AIRuntimeProvider({ children, presetId }: AIRuntimeProviderProps): React.JSX.Element {
-  // Create adapter with presetId closure
-  const createAIModelAdapter = (currentPresetId: string | null): ChatModelAdapter => ({
+export function AIRuntimeProvider({ children, modelSelection }: AIRuntimeProviderProps): React.JSX.Element {
+  // Create adapter with modelSelection closure
+  const createAIModelAdapter = (currentSelection: AIModelSelection | null): ChatModelAdapter => ({
     async *run({ messages, abortSignal }) {
       // Convert Assistant-ui messages to AIMessage format
       const formattedMessages = messages.map((message: ThreadMessage) => ({
@@ -22,8 +23,11 @@ export function AIRuntimeProvider({ children, presetId }: AIRuntimeProviderProps
           .join('')
       }))
 
-      logger.info(`Starting AI stream with ${formattedMessages.length} messages, presetId: ${currentPresetId || 'default'}`)
-      const stream = await streamText(formattedMessages, abortSignal, currentPresetId)
+      const selectionInfo = currentSelection
+        ? `${currentSelection.providerConfigId}:${currentSelection.modelId}`
+        : 'default'
+      logger.info(`Starting AI stream with ${formattedMessages.length} messages, selection: ${selectionInfo}`)
+      const stream = await streamText(formattedMessages, abortSignal, currentSelection)
 
       const contentChunks: string[] = []
       for await (const chunk of stream) {
@@ -36,7 +40,7 @@ export function AIRuntimeProvider({ children, presetId }: AIRuntimeProviderProps
     }
   })
 
-  const runtime = useLocalRuntime(createAIModelAdapter(presetId))
+  const runtime = useLocalRuntime(createAIModelAdapter(modelSelection))
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
 }

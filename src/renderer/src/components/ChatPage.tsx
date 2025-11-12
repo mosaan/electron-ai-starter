@@ -3,26 +3,35 @@ import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { Thread } from '@renderer/components/assistant-ui/thread'
 import { AIRuntimeProvider } from '@renderer/components/AIRuntimeProvider'
-import { PresetSelector } from '@renderer/components/PresetSelector'
+import { ModelSelector } from '@renderer/components/ModelSelector'
+import type { AIModelSelection } from '@common/types'
 
 interface ChatPageProps {
   onBack: () => void
 }
 
-const LAST_PRESET_KEY = 'ai-last-used-preset'
+const LAST_MODEL_SELECTION_KEY = 'ai-last-model-selection'
 
 export function ChatPage({ onBack }: ChatPageProps): React.JSX.Element {
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(() => {
-    // Load last-used preset from localStorage
-    return localStorage.getItem(LAST_PRESET_KEY)
+  const [selectedModel, setSelectedModel] = useState<AIModelSelection | null>(() => {
+    // Load last-used model selection from localStorage
+    const stored = localStorage.getItem(LAST_MODEL_SELECTION_KEY)
+    if (stored) {
+      try {
+        return JSON.parse(stored) as AIModelSelection
+      } catch {
+        return null
+      }
+    }
+    return null
   })
 
-  // Persist preset selection to localStorage
+  // Persist model selection to localStorage
   useEffect(() => {
-    if (selectedPresetId) {
-      localStorage.setItem(LAST_PRESET_KEY, selectedPresetId)
+    if (selectedModel) {
+      localStorage.setItem(LAST_MODEL_SELECTION_KEY, JSON.stringify(selectedModel))
     }
-  }, [selectedPresetId])
+  }, [selectedModel])
 
   return (
     <div className="h-screen bg-background flex flex-col">
@@ -40,15 +49,15 @@ export function ChatPage({ onBack }: ChatPageProps): React.JSX.Element {
             </div>
           </div>
 
-          <PresetSelector
-            selectedPresetId={selectedPresetId}
-            onPresetChange={setSelectedPresetId}
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
           />
         </div>
       </header>
 
       <main className="flex-1 overflow-hidden">
-        <AIRuntimeProvider presetId={selectedPresetId}>
+        <AIRuntimeProvider modelSelection={selectedModel}>
           <Thread />
         </AIRuntimeProvider>
       </main>
