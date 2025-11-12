@@ -9,6 +9,7 @@ import { isOk } from '@common/result'
 function App() {
   const [currentPage, setCurrentPage] = useState<'home' | 'settings' | 'chat'>('home')
   const [backendConnected, setBackendConnected] = useState(false)
+  const [isCheckingSettings, setIsCheckingSettings] = useState(true)
 
   useEffect(() => {
     const connectToBackend = async (): Promise<void> => {
@@ -18,6 +19,30 @@ function App() {
       if (isOk(result)) {
         logger.info(`Backend ping successful: ${result.value}`)
       }
+
+      // Check AI settings to determine initial page
+      const settingsResult = await window.backend.getAISettingsV2()
+      if (isOk(settingsResult)) {
+        const hasProviderConfigs =
+          settingsResult.value?.providerConfigs &&
+          settingsResult.value.providerConfigs.length > 0
+
+        if (hasProviderConfigs) {
+          // AI is configured, go directly to chat
+          logger.info('AI settings found, navigating to chat')
+          setCurrentPage('chat')
+        } else {
+          // No AI configuration, go to settings
+          logger.info('No AI settings found, navigating to settings')
+          setCurrentPage('settings')
+        }
+      } else {
+        // Failed to get settings, default to settings page
+        logger.warn('Failed to get AI settings, navigating to settings')
+        setCurrentPage('settings')
+      }
+
+      setIsCheckingSettings(false)
     }
 
     connectToBackend()
@@ -35,16 +60,16 @@ function App() {
     setCurrentPage('home')
   }
 
-  // Show error state if backend connection failed
-  if (!backendConnected) {
+  // Show loading state while checking settings
+  if (!backendConnected || isCheckingSettings) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 dark:from-gray-900 dark:via-gray-800 dark:to-red-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-semibold text-red-700 dark:text-red-300 mb-4">
-            Failed to connect to backend
+          <div className="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
+            Loading...
           </div>
           <p className="text-gray-600 dark:text-gray-400">
-            Please check the logs for more information.
+            Initializing application
           </p>
         </div>
       </div>
