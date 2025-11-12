@@ -13,6 +13,7 @@ import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
 import { Switch } from '@renderer/components/ui/switch'
 import { Badge } from '@renderer/components/ui/badge'
+import { ProviderConfigDialog } from './ProviderConfigDialog'
 
 interface AISettingsV3Props {
   className?: string
@@ -21,6 +22,8 @@ interface AISettingsV3Props {
 export function AISettingsV3Component({ className = '' }: AISettingsV3Props): React.JSX.Element {
   const [settings, setSettings] = useState<AISettingsV3 | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingConfig, setEditingConfig] = useState<AIProviderConfiguration | null>(null)
 
   // Load settings on mount
   useEffect(() => {
@@ -81,6 +84,20 @@ export function AISettingsV3Component({ className = '' }: AISettingsV3Props): Re
     }
   }
 
+  const handleEdit = (config: AIProviderConfiguration): void => {
+    setEditingConfig(config)
+    setDialogOpen(true)
+  }
+
+  const handleAddNew = (): void => {
+    setEditingConfig(null)
+    setDialogOpen(true)
+  }
+
+  const handleDialogSave = async (): Promise<void> => {
+    await loadSettings()
+  }
+
   const getProviderTypeName = (type: string): string => {
     const typeNames: Record<string, string> = {
       openai: 'OpenAI',
@@ -112,7 +129,7 @@ export function AISettingsV3Component({ className = '' }: AISettingsV3Props): Re
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button className="w-full" variant="outline">
+        <Button className="w-full" variant="outline" onClick={handleAddNew}>
           <Plus className="mr-2 h-4 w-4" />
           Add New Configuration
         </Button>
@@ -168,7 +185,7 @@ export function AISettingsV3Component({ className = '' }: AISettingsV3Props): Re
                     </div>
 
                     <div className="flex items-center gap-2 ml-4">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(config)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
@@ -187,6 +204,13 @@ export function AISettingsV3Component({ className = '' }: AISettingsV3Props): Re
           </div>
         )}
       </CardContent>
+
+      <ProviderConfigDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        config={editingConfig}
+        onSave={handleDialogSave}
+      />
     </Card>
   )
 }
