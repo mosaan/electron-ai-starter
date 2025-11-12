@@ -308,30 +308,20 @@ This document will be updated after each phase to track:
 - ✅ Phase 4: Chat UI - Preset Selector (Commit 37d12fc)
 - ✅ Phase 5: Bug Fixes and Improvements (Commits 57634b5, fbebd25, 67f94d6, d8b02d7, 800a79e)
 
-**⚠️ IMPORTANT: V2 Implementation Complete, V3 Design In Progress**
+**✅ IMPLEMENTATION COMPLETE: V2 Architecture (Provider Configuration-Based)**
 
-The v2 implementation (preset-based model selection) has been completed and is functional. However, design review identified that the preset-based approach does not fully meet user requirements.
+The AI Settings V2 architecture has been fully implemented, replacing both the legacy V1 (single provider per type) and an intermediate preset-based approach that was developed but never released.
 
-**V2 Limitations Identified:**
-1. Cannot configure multiple instances of same provider type (e.g., both OpenAI official and OpenAI-compatible server)
-2. Model lists are hardcoded instead of fetched from API
-3. Chat UI uses preset selection instead of dynamic model selection from all available providers
-4. No support for custom model addition for compatible servers
+**V2 Implementation (Current):**
+1. Multiple provider configurations per type with user-friendly names (e.g., "OpenAI Official", "LocalLM Server")
+2. API-based model discovery with custom model support
+3. Dynamic model selection across all enabled configurations
+4. Clear distinction between API-sourced and custom models
+5. Direct V1→V2 migration with automatic settings preservation
 
-**Next Steps: V3 Design**
-A new architecture design (AISettingsV3) has been created to address these limitations:
-- **Document**: `docs/AI_SETTINGS_V3_DESIGN.md`
-- **Key Changes**:
-  - Multiple provider configurations per type with user-friendly names
-  - API-based model discovery with custom model support
-  - Chat UI shows all available models across all configurations
-  - Clear distinction between API-sourced and custom models
+**Architecture Document**: `docs/AI_SETTINGS_V2_DESIGN.md`
 
-**V2 → V3 Migration Plan:**
-- V2 implementation remains as a baseline
-- V3 will be implemented incrementally in future phases
-- Automatic migration from v2 to v3 will preserve user settings
-- See `AI_SETTINGS_V3_DESIGN.md` for detailed migration strategy
+**Migration**: The system automatically migrates from V1 (legacy single provider per type) to V2 (provider configuration-based) on first launch. An intermediate preset-based approach was developed during implementation but consolidated into the final V2 release for simplicity.
 
 ### Completed Work
 

@@ -1,4 +1,4 @@
-# AI Settings V3 Design Document
+# AI Settings V2 Design Document
 
 ## Implementation Status
 
@@ -7,23 +7,23 @@
 
 | Phase | Status | Commits | Description |
 |-------|--------|---------|-------------|
-| Phase 1: Backend Schema & Migration | ✅ Complete | 6 commits | V3 interfaces, migration, CRUD, unit tests |
+| Phase 1: Backend Schema & Migration | ✅ Complete | 6 commits | V2 interfaces, migration, CRUD, unit tests |
 | Phase 2: Model Discovery | ✅ Complete | 1 commit | API discovery for OpenAI/Azure, hardcoded for Anthropic/Google |
 | Phase 3: Settings UI Redesign | ✅ Complete | 3 commits | Provider list, edit dialog, model management UI |
 | Phase 4: Chat UI Model Selection | ✅ Complete | 2 commits | Dynamic model selector, localStorage persistence, handler integration |
 | Phase 5: Testing & Migration | ✅ Complete | 1 commit | Edge case migration tests, 112 backend tests passing |
 
 **Total Commits**: 13 commits
-**Test Coverage**: 112 backend tests (17 V3-specific: 6 migration + 11 CRUD/model management)
-**Implementation**: Fully backward compatible with V2 (automatic migration)
+**Test Coverage**: 112 backend tests (17 V2-specific: 6 migration + 11 CRUD/model management)
+**Implementation**: Fully backward compatible with V1 (automatic migration)
 
 ## Overview
 
-This document describes the redesigned AI settings architecture (v3) that addresses limitations in the current v2 implementation and supports more flexible provider and model management.
+This document describes the AI settings architecture (v2) that addresses limitations in the legacy v1 implementation and supports flexible provider and model management.
 
-## Background: V2 Limitations
+## Background: V1 Limitations
 
-The current v2 implementation has the following limitations:
+The legacy v1 implementation had the following limitations:
 
 1. **Single Provider Configuration per Type**: Only one configuration allowed per provider type (OpenAI, Anthropic, etc.)
    - Cannot have both "OpenAI Official" and "OpenAI-compatible server" simultaneously
@@ -48,7 +48,7 @@ The current v2 implementation has the following limitations:
 2. **Dynamic Model Management**: Fetch models from API when available, with fallback to custom model lists
 3. **Flexible Model Selection**: Chat UI shows all available models across all configured providers
 4. **Clear Configuration Identity**: Each provider configuration has a user-friendly name
-5. **Backward Compatibility**: Smooth migration from v2 to v3
+5. **Backward Compatibility**: Smooth migration from v1 to v2
 
 ## Schema Design
 
@@ -56,10 +56,10 @@ The current v2 implementation has the following limitations:
 
 ```typescript
 /**
- * AI Settings V3 - Root configuration object
+ * AI Settings V2 - Root configuration object
  */
-interface AISettingsV3 {
-  version: 3
+interface AISettingsV2 {
+  version: 2
 
   // Last used provider config + model combination
   defaultSelection?: {
@@ -123,7 +123,7 @@ interface AIModelSelection {
   providerConfigId: string      // Which provider config to use
   modelId: string               // Which model from that config
 
-  // Note: Parameters (temperature, maxTokens, etc.) are NOT supported in V3
+  // Note: Parameters (temperature, maxTokens, etc.) are NOT supported in V2
   // They will use default values from the AI SDK
   // Future enhancement: Add parameter preset support (see Future Enhancements section)
 }
@@ -146,14 +146,14 @@ interface AzureProviderConfig extends AIProviderConfig {
 }
 ```
 
-## Migration Strategy: V2 → V3
+## Migration Strategy: V1 → V2
 
 ### Automatic Migration on First Launch
 
 ```typescript
-function migrateAISettingsV2ToV3(v2: AISettingsV2): AISettingsV3 {
-  const v3: AISettingsV3 = {
-    version: 3,
+function migrateAISettingsV2ToV2(v2: AISettingsV2): AISettingsV2 {
+  const v2: AISettingsV2 = {
+    version: 2,
     providerConfigs: []
   }
 
@@ -174,16 +174,16 @@ function migrateAISettingsV2ToV3(v2: AISettingsV2): AISettingsV3 {
       updatedAt: new Date().toISOString()
     }
 
-    v3.providerConfigs.push(providerConfig)
+    v2.providerConfigs.push(providerConfig)
   }
 
   // Step 2: Set default selection from v2.defaultPresetId
   if (v2.defaultPresetId) {
     const defaultPreset = v2.presets.find(p => p.id === v2.defaultPresetId)
     if (defaultPreset) {
-      const matchingConfig = v3.providerConfigs.find(c => c.type === defaultPreset.provider)
+      const matchingConfig = v2.providerConfigs.find(c => c.type === defaultPreset.provider)
       if (matchingConfig) {
-        v3.defaultSelection = {
+        v2.defaultSelection = {
           providerConfigId: matchingConfig.id,
           modelId: defaultPreset.model
         }
@@ -191,7 +191,7 @@ function migrateAISettingsV2ToV3(v2: AISettingsV2): AISettingsV3 {
     }
   }
 
-  return v3
+  return v2
 }
 
 function getDefaultModelsForType(type: AIProviderType): AIModelDefinition[] {
@@ -217,8 +217,8 @@ function getDefaultProviderName(type: AIProviderType): string {
 ### Migration Behavior
 
 - v2 settings remain in database as `ai_v2` key for rollback capability
-- v3 settings stored under `ai_v3` key
-- On startup, check for `ai_v3` first, then migrate from `ai_v2` if needed
+- v2 settings stored under `ai_v2` key
+- On startup, check for `ai_v2` first, then migrate from `ai_v2` if needed
 - Presets from v2 are discarded (users will select provider config + model directly)
 
 ## API Layer Changes
@@ -323,7 +323,7 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 
 **Current (v2)**: Tab-based provider configuration + preset list
 
-**New (v3)**: Provider configuration list + model management per config
+**New (v2)**: Provider configuration list + model management per config
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -388,7 +388,7 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 
 **Current (v2)**: Preset dropdown (shows preset names)
 
-**New (v3)**: Provider + Model selector (shows all available combinations)
+**New (v2)**: Provider + Model selector (shows all available combinations)
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -421,7 +421,7 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 - Persist last selection to localStorage
 
 **Note on Parameters**:
-- V3 does not support per-request parameter customization (temperature, maxTokens, etc.)
+- V2 does not support per-request parameter customization (temperature, maxTokens, etc.)
 - All models use default parameters from AI SDK
 - See Future Enhancements for planned parameter preset support
 
@@ -431,12 +431,12 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 **Status**: Implemented and tested (6 commits: 3eb447d, 8b18ec2, 91f8e7e, d8c91dc, d4251dd, b007caf)
 
 **Completed Tasks**:
-- ✅ Define v3 interfaces in `src/common/types.ts` (AISettingsV3, AIProviderConfiguration, AIModelDefinition, AIModelSelection)
-- ✅ Implement v2 → v3 migration in `src/backend/settings/ai-settings.ts` with automatic fallback chain (V3→V2→V1)
-- ✅ Add v3 CRUD operations for provider configs (create, read, update, delete with UUID/timestamp auto-generation)
+- ✅ Define v2 interfaces in `src/common/types.ts` (AISettingsV2, AIProviderConfiguration, AIModelDefinition, AIModelSelection)
+- ✅ Implement v1 → v2 migration in `src/backend/settings/ai-settings.ts` with automatic fallback chain (V2→V2→V1)
+- ✅ Add v2 CRUD operations for provider configs (create, read, update, delete with UUID/timestamp auto-generation)
 - ✅ Add model management APIs (add, update, delete models; refreshModelsFromAPI placeholder)
-- ✅ Update Handler layer to expose all V3 APIs
-- ✅ Update preload bridge to make V3 APIs accessible from renderer
+- ✅ Update Handler layer to expose all V2 APIs
+- ✅ Update preload bridge to make V2 APIs accessible from renderer
 - ✅ Unit tests added (14 test cases covering migration, CRUD, model management)
 
 **Key Features**:
@@ -470,7 +470,7 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 **Status**: Implemented and integrated (3 commits: c8547dc, 8c28421, aed73a2)
 
 **Completed Tasks**:
-- ✅ Replace tabbed interface with configuration list (AISettingsV3Component)
+- ✅ Replace tabbed interface with configuration list (AISettingsV2Component)
 - ✅ Create provider config edit dialog (ProviderConfigDialog) with full CRUD
 - ✅ Implement model management UI:
   - Refresh models from API with visual feedback (success/error states)
@@ -478,10 +478,10 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
   - Delete custom models (API models protected)
   - Model list with source indicator (API vs Custom)
 - ✅ Add configuration enable/disable toggle per config
-- ✅ Integrate V3 UI into Settings page replacing V2
+- ✅ Integrate V2 UI into Settings page replacing V2
 
 **Components Created**:
-1. `AISettingsV3.tsx` (199 lines): Provider configuration list with cards
+1. `AISettingsV2.tsx` (199 lines): Provider configuration list with cards
 2. `ProviderConfigDialog.tsx` (498 lines): Full edit/create dialog with model management
 3. Shadcn components added: Switch, Badge (Dialog and Select were already available)
 
@@ -503,8 +503,8 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 - ✅ Implemented localStorage persistence for last AIModelSelection (JSON format)
 - ✅ Updated `AIRuntimeProvider` to accept `modelSelection` prop instead of `presetId`
 - ✅ Updated `streamText()` API to accept `modelSelection` parameter
-- ✅ Extended `StreamAIOptions` interface to support both V3 (`modelSelection`) and V2 (`presetId`)
-- ✅ Added V3 resolution logic to backend handler with V2 backward compatibility
+- ✅ Extended `StreamAIOptions` interface to support both V2 (`modelSelection`) and V2 (`presetId`)
+- ✅ Added V2 resolution logic to backend handler with V2 backward compatibility
 - ✅ Display model source indicators ("Custom") and default marker ("⭐")
 - ✅ Disable providers without API keys
 - ✅ Type checking passes (0 errors)
@@ -515,16 +515,16 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 - `src/renderer/src/components/AIRuntimeProvider.tsx` (modelSelection prop)
 - `src/renderer/src/lib/ai.ts` (modelSelection parameter)
 - `src/common/types.ts` (StreamAIOptions interface)
-- `src/backend/handler.ts` (V3 resolution logic)
+- `src/backend/handler.ts` (V2 resolution logic)
 
-**Resolution Priority**: V3 modelSelection → V2 presetId → explicit provider/model → default preset → first preset → V1 fallback
+**Resolution Priority**: V2 modelSelection → V2 presetId → explicit provider/model → default preset → first preset → V1 fallback
 
 
 ### Phase 5: Testing & Migration ✅ COMPLETE
 **Completed in commit 7f1ddd6** (2025-11-12)
 
 **Implementation Summary**:
-- ✅ V2→V3 migration testing with comprehensive edge cases:
+- ✅ V1→V2 migration testing with comprehensive edge cases:
   - Basic migration (2 providers, 1 preset with default)
   - Multiple presets with default selection preservation
   - Azure provider configuration (resourceName, deployment URLs)
@@ -539,34 +539,34 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 
 **Test Results**:
 - Total: 112 backend tests passing
-- V3-specific: 17 tests (6 migration + 11 CRUD/model management)
+- V2-specific: 17 tests (6 migration + 11 CRUD/model management)
 - Zero failures, all type checks pass
 
 **Files Modified**:
-- `tests/backend/ai-settings-v3.test.ts` (+167 lines, 5 new migration tests)
+- `tests/backend/ai-settings-v2.test.ts` (+167 lines, 5 new migration tests)
 
 **Next Steps for E2E Testing** (requires executable environment):
 - Test model refresh with real OpenAI/Anthropic/Google APIs
-- Test chat streaming with V3 model selection
+- Test chat streaming with V2 model selection
 - Test UI workflows (Settings → Model Selector → Chat)
-- Verify V2→V3 migration UX in running application
+- Verify V1→V2 migration UX in running application
 
 ## Deprecation Plan
 
 ### V2 Presets
-- Presets concept is deprecated in v3
+- Presets concept is deprecated in v2
 - v2 presets are NOT migrated (information loss acceptable)
 - Users will need to re-select their preferred model after migration
 - Default selection is set from v2.defaultPresetId if available
 
 ### V2 Provider Configs
-- Fully migrated to v3 provider configurations
-- One v2 provider config → one v3 provider config with default name
+- Fully migrated to v2 provider configurations
+- One v2 provider config → one v2 provider config with default name
 - All settings preserved (API key, baseURL, Azure settings)
 
 ## Future Enhancements
 
-### Model Parameter Presets (Post V3)
+### Model Parameter Presets (Post V2)
 - Add ability to save parameter combinations (temperature, maxTokens, etc.)
 - Separate from provider + model selection
 - Allow quick switching between "Creative", "Balanced", "Precise" presets
@@ -589,7 +589,7 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 ## Design Decisions (Resolved)
 
 ### 1. Model Alias Support
-**Decision**: Not supported in V3
+**Decision**: Not supported in V2
 **Rationale**: Adds complexity without clear user benefit. Users can distinguish models by provider config name + model ID.
 
 ### 2. Model Deprecation Handling
@@ -601,18 +601,18 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 - Custom models are preserved and unaffected
 
 ### 3. Import/Export Support
-**Decision**: Not supported in V3
+**Decision**: Not supported in V2
 **Rationale**: Deferred to future enhancement. Focus on core functionality first.
 
 ### 4. Model Version Tracking
-**Decision**: Not supported in V3
+**Decision**: Not supported in V2
 **Rationale**: Use model IDs directly from API as-is. No version management needed since API returns current model IDs.
 
 ### 5. Parameter Customization
-**Decision**: Not supported in V3
+**Decision**: Not supported in V2
 **Rationale**:
 - V2's preset-based approach (provider + model + parameters) was overly complex
-- V3 focuses on provider config + model selection
+- V2 focuses on provider config + model selection
 - Parameters use AI SDK defaults (temperature, maxTokens, etc.)
 - Future enhancement: Parameter presets as separate feature (see Future Enhancements)
 
@@ -626,14 +626,14 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 
 ## Design Finalized
 
-All design decisions have been resolved. The V3 architecture is ready for implementation.
+All design decisions have been resolved. The V2 architecture is ready for implementation.
 
 **Key Design Principles**:
 1. Multiple provider configurations per type with user-friendly names
 2. API-based model discovery with custom model support
 3. Dynamic model selection across all enabled configurations
-4. Simple, focused scope (no templates, no parameter presets in V3)
-5. Smooth migration from V2 with minimal user disruption
+4. Simple, focused scope (no templates, no parameter presets in V2)
+5. Smooth migration from V1 with minimal user disruption
 
 ## References
 
