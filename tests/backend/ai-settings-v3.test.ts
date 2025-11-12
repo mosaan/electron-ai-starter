@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createTestDatabase } from './database-helper'
-import type { AISettingsV2, AISettingsV3 } from '@common/types'
+import type { AISettingsV2, AISettings } from '@common/types'
 import {
-  getAISettingsV3,
-  saveAISettingsV3,
+  getAISettingsV2,
+  saveAISettingsV2,
   getProviderConfigurations,
   getProviderConfiguration,
   createProviderConfiguration,
@@ -41,50 +41,34 @@ vi.mock('@backend/db', async () => {
   }
 })
 
-describe('AI Settings V3', () => {
+describe('AI Settings V2', () => {
   beforeEach(async () => {
     // Create a fresh test database for each test
     testDbInstance = await createTestDatabase()
   })
 
-  describe('V2 to V3 Migration', () => {
-    it('should migrate V2 settings to V3 format', async () => {
-      // Setup V2 settings
-      const v2Settings: AISettingsV2 = {
-        version: 2,
-        providers: {
-          openai: {
-            apiKey: 'test-openai-key',
-            baseURL: 'https://api.openai.com/v1'
-          },
-          anthropic: {
-            apiKey: 'test-anthropic-key'
-          }
-        },
-        presets: [
-          {
-            id: 'preset-1',
-            name: 'GPT-4',
-            provider: 'openai',
-            model: 'gpt-4',
-            createdAt: '2024-01-01T00:00:00.000Z'
-          }
-        ],
-        defaultPresetId: 'preset-1'
+  describe('V1 to V2 Migration', () => {
+    it('should migrate V1 settings to V2 format', async () => {
+      // Setup V1 settings
+      const v1Settings: AISettings = {
+        default_provider: 'openai',
+        openai_api_key: 'test-openai-key',
+        openai_model: 'gpt-4',
+        anthropic_api_key: 'test-anthropic-key'
       }
 
-      // Save V2 settings to the correct key
+      // Save V1 settings to the correct key
       const { setSetting } = await import('@backend/settings')
-      await setSetting('ai_v2', v2Settings)
+      await setSetting('ai', v1Settings)
 
-      // Load as V3 (should auto-migrate)
-      const v3Settings = await getAISettingsV3()
+      // Load as V2 (should auto-migrate)
+      const v2Settings = await getAISettingsV2()
 
-      expect(v3Settings.version).toBe(3)
-      expect(v3Settings.providerConfigs).toHaveLength(2)
+      expect(v2Settings.version).toBe(2)
+      expect(v2Settings.providerConfigs).toHaveLength(2)
 
       // Check OpenAI configuration
-      const openaiConfig = v3Settings.providerConfigs.find((c) => c.type === 'openai')
+      const openaiConfig = v2Settings.providerConfigs.find((c) => c.type === 'openai')
       expect(openaiConfig).toBeDefined()
       expect(openaiConfig?.name).toBe('OpenAI')
       expect(openaiConfig?.config.apiKey).toBe('test-openai-key')
@@ -93,21 +77,21 @@ describe('AI Settings V3', () => {
       expect(openaiConfig?.createdAt).toBeDefined()
 
       // Check Anthropic configuration
-      const anthropicConfig = v3Settings.providerConfigs.find((c) => c.type === 'anthropic')
+      const anthropicConfig = v2Settings.providerConfigs.find((c) => c.type === 'anthropic')
       expect(anthropicConfig).toBeDefined()
       expect(anthropicConfig?.name).toBe('Anthropic')
       expect(anthropicConfig?.config.apiKey).toBe('test-anthropic-key')
 
       // Check default selection migration
-      expect(v3Settings.defaultSelection).toBeDefined()
-      expect(v3Settings.defaultSelection?.providerConfigId).toBe(openaiConfig?.id)
-      expect(v3Settings.defaultSelection?.modelId).toBe('gpt-4')
+      expect(v2Settings.defaultSelection).toBeDefined()
+      expect(v2Settings.defaultSelection?.providerConfigId).toBe(openaiConfig?.id)
+      expect(v2Settings.defaultSelection?.modelId).toBe('gpt-4')
     })
 
-    it('should preserve V3 settings without re-migration', async () => {
-      // Create V3 settings directly
-      const v3Settings: AISettingsV3 = {
-        version: 3,
+    it('should preserve V2 settings without re-migration', async () => {
+      // Create V2 settings directly
+      const v2Settings: AISettingsV2 = {
+        version: 2,
         providerConfigs: [
           {
             id: 'test-config-id',
@@ -123,182 +107,114 @@ describe('AI Settings V3', () => {
         ]
       }
 
-      await saveAISettingsV3(v3Settings)
+      await saveAISettingsV2(v2Settings)
 
       // Load again
-      const loaded = await getAISettingsV3()
+      const loaded = await getAISettingsV2()
 
-      expect(loaded.version).toBe(3)
+      expect(loaded.version).toBe(2)
       expect(loaded.providerConfigs).toHaveLength(1)
       expect(loaded.providerConfigs[0].id).toBe('test-config-id')
       expect(loaded.providerConfigs[0].name).toBe('Test OpenAI')
     })
 
-    it('should migrate V2 with multiple presets and preserve default', async () => {
-      const v2Settings: AISettingsV2 = {
-        version: 2,
-        providers: {
-          openai: { apiKey: 'openai-key' },
-          anthropic: { apiKey: 'anthropic-key' },
-          google: { apiKey: 'google-key' }
-        },
-        presets: [
-          {
-            id: 'preset-1',
-            name: 'GPT-4 Turbo',
-            provider: 'openai',
-            model: 'gpt-4-turbo',
-            createdAt: '2024-01-01T00:00:00.000Z'
-          },
-          {
-            id: 'preset-2',
-            name: 'Claude Sonnet',
-            provider: 'anthropic',
-            model: 'claude-3-5-sonnet-20241022',
-            createdAt: '2024-01-02T00:00:00.000Z'
-          },
-          {
-            id: 'preset-3',
-            name: 'Gemini Pro',
-            provider: 'google',
-            model: 'gemini-1.5-pro-latest',
-            createdAt: '2024-01-03T00:00:00.000Z'
-          }
-        ],
-        defaultPresetId: 'preset-2' // Claude Sonnet
+    it('should migrate V1 with multiple providers and preserve default', async () => {
+      const v1Settings: AISettings = {
+        default_provider: 'anthropic',
+        openai_api_key: 'openai-key',
+        openai_model: 'gpt-4-turbo',
+        anthropic_api_key: 'anthropic-key',
+        anthropic_model: 'claude-3-5-sonnet-20241022',
+        google_api_key: 'google-key',
+        google_model: 'gemini-1.5-pro-latest'
       }
 
       const { setSetting } = await import('@backend/settings')
-      await setSetting('ai_v2', v2Settings)
+      await setSetting('ai', v1Settings)
 
-      const v3Settings = await getAISettingsV3()
+      const v2Settings = await getAISettingsV2()
 
-      expect(v3Settings.version).toBe(3)
-      expect(v3Settings.providerConfigs).toHaveLength(3)
+      expect(v2Settings.version).toBe(2)
+      expect(v2Settings.providerConfigs).toHaveLength(3)
 
       // Check default selection migrated to Claude
-      const anthropicConfig = v3Settings.providerConfigs.find((c) => c.type === 'anthropic')
-      expect(v3Settings.defaultSelection).toBeDefined()
-      expect(v3Settings.defaultSelection?.providerConfigId).toBe(anthropicConfig?.id)
-      expect(v3Settings.defaultSelection?.modelId).toBe('claude-3-5-sonnet-20241022')
+      const anthropicConfig = v2Settings.providerConfigs.find((c) => c.type === 'anthropic')
+      expect(v2Settings.defaultSelection).toBeDefined()
+      expect(v2Settings.defaultSelection?.providerConfigId).toBe(anthropicConfig?.id)
+      expect(v2Settings.defaultSelection?.modelId).toBe('claude-3-5-sonnet-20241022')
     })
 
-    it('should migrate V2 with Azure provider configuration', async () => {
-      const v2Settings: AISettingsV2 = {
-        version: 2,
-        providers: {
-          azure: {
-            apiKey: 'azure-key',
-            baseURL: 'https://my-resource.openai.azure.com',
-            resourceName: 'my-resource',
-            useDeploymentBasedUrls: true
-          }
-        },
-        presets: [
-          {
-            id: 'azure-preset',
-            name: 'Azure GPT-4',
-            provider: 'azure',
-            model: 'gpt-4-deployment',
-            createdAt: '2024-01-01T00:00:00.000Z'
-          }
-        ],
-        defaultPresetId: 'azure-preset'
+    it('should migrate V1 with Azure provider configuration', async () => {
+      const v1Settings: AISettings = {
+        default_provider: 'azure',
+        azure_api_key: 'azure-key',
+        azure_model: 'gpt-4-deployment'
       }
 
       const { setSetting } = await import('@backend/settings')
-      await setSetting('ai_v2', v2Settings)
+      await setSetting('ai', v1Settings)
 
-      const v3Settings = await getAISettingsV3()
+      const v2Settings = await getAISettingsV2()
 
-      const azureConfig = v3Settings.providerConfigs.find((c) => c.type === 'azure')
+      const azureConfig = v2Settings.providerConfigs.find((c) => c.type === 'azure')
       expect(azureConfig).toBeDefined()
       expect(azureConfig?.name).toBe('Azure OpenAI')
       expect(azureConfig?.config.apiKey).toBe('azure-key')
-      expect(azureConfig?.config.baseURL).toBe('https://my-resource.openai.azure.com')
-      expect((azureConfig?.config as any).resourceName).toBe('my-resource')
-      expect((azureConfig?.config as any).useDeploymentBasedUrls).toBe(true)
 
       // Check default selection
-      expect(v3Settings.defaultSelection?.providerConfigId).toBe(azureConfig?.id)
-      expect(v3Settings.defaultSelection?.modelId).toBe('gpt-4-deployment')
+      expect(v2Settings.defaultSelection?.providerConfigId).toBe(azureConfig?.id)
+      expect(v2Settings.defaultSelection?.modelId).toBe('gpt-4-deployment')
     })
 
-    it('should migrate V2 with baseURL in provider config', async () => {
-      const v2Settings: AISettingsV2 = {
-        version: 2,
-        providers: {
-          openai: {
-            apiKey: 'local-key',
-            baseURL: 'http://localhost:8080/v1'
-          }
-        },
-        presets: [
-          {
-            id: 'local-preset',
-            name: 'Local LLM',
-            provider: 'openai',
-            model: 'llama-3-8b',
-            createdAt: '2024-01-01T00:00:00.000Z'
-          }
-        ]
+    it('should migrate V1 without baseURL (V1 did not support baseURL)', async () => {
+      const v1Settings: AISettings = {
+        default_provider: 'openai',
+        openai_api_key: 'openai-key',
+        openai_model: 'gpt-4'
       }
 
       const { setSetting } = await import('@backend/settings')
-      await setSetting('ai_v2', v2Settings)
+      await setSetting('ai', v1Settings)
 
-      const v3Settings = await getAISettingsV3()
+      const v2Settings = await getAISettingsV2()
 
-      const config = v3Settings.providerConfigs.find((c) => c.type === 'openai')
-      expect(config?.config.baseURL).toBe('http://localhost:8080/v1')
+      const config = v2Settings.providerConfigs.find((c) => c.type === 'openai')
+      expect(config?.config.apiKey).toBe('openai-key')
+      expect(config?.config.baseURL).toBeUndefined()
     })
 
-    it('should migrate V2 with no default preset', async () => {
-      const v2Settings: AISettingsV2 = {
-        version: 2,
-        providers: {
-          openai: { apiKey: 'test-key' }
-        },
-        presets: [
-          {
-            id: 'preset-1',
-            name: 'GPT-4',
-            provider: 'openai',
-            model: 'gpt-4',
-            createdAt: '2024-01-01T00:00:00.000Z'
-          }
-        ]
-        // No defaultPresetId
+    it('should migrate V1 with no default provider', async () => {
+      const v1Settings: AISettings = {
+        openai_api_key: 'test-key',
+        openai_model: 'gpt-4'
+        // No default_provider
       }
 
       const { setSetting } = await import('@backend/settings')
-      await setSetting('ai_v2', v2Settings)
+      await setSetting('ai', v1Settings)
 
-      const v3Settings = await getAISettingsV3()
+      const v2Settings = await getAISettingsV2()
 
-      expect(v3Settings.version).toBe(3)
-      expect(v3Settings.providerConfigs).toHaveLength(1)
-      expect(v3Settings.defaultSelection).toBeUndefined()
+      expect(v2Settings.version).toBe(2)
+      expect(v2Settings.providerConfigs).toHaveLength(1)
+      expect(v2Settings.defaultSelection).toBeUndefined()
     })
 
-    it('should migrate V2 with empty presets', async () => {
-      const v2Settings: AISettingsV2 = {
-        version: 2,
-        providers: {
-          openai: { apiKey: 'test-key' },
-          anthropic: { apiKey: 'test-key2' }
-        },
-        presets: []
+    it('should migrate V1 with multiple providers and no default', async () => {
+      const v1Settings: AISettings = {
+        openai_api_key: 'test-key',
+        anthropic_api_key: 'test-key2'
+        // No default_provider
       }
 
       const { setSetting } = await import('@backend/settings')
-      await setSetting('ai_v2', v2Settings)
+      await setSetting('ai', v1Settings)
 
-      const v3Settings = await getAISettingsV3()
+      const v2Settings = await getAISettingsV2()
 
-      expect(v3Settings.version).toBe(3)
-      expect(v3Settings.providerConfigs).toHaveLength(2)
-      expect(v3Settings.defaultSelection).toBeUndefined()
+      expect(v2Settings.version).toBe(2)
+      expect(v2Settings.providerConfigs).toHaveLength(2)
+      expect(v2Settings.defaultSelection).toBeUndefined()
     })
   })
 
@@ -398,18 +314,18 @@ describe('AI Settings V3', () => {
       })
 
       // Set default selection
-      const settings = await getAISettingsV3()
+      const settings = await getAISettingsV2()
       settings.defaultSelection = {
         providerConfigId: configId,
         modelId: 'gpt-4'
       }
-      await saveAISettingsV3(settings)
+      await saveAISettingsV2(settings)
 
       // Delete the provider config
       await deleteProviderConfiguration(configId)
 
       // Check that default selection is cleared
-      const updatedSettings = await getAISettingsV3()
+      const updatedSettings = await getAISettingsV2()
       expect(updatedSettings.defaultSelection).toBeUndefined()
     })
   })
@@ -477,18 +393,18 @@ describe('AI Settings V3', () => {
 
     it('should clear default selection when deleting the selected model', async () => {
       // Set default selection
-      const settings = await getAISettingsV3()
+      const settings = await getAISettingsV2()
       settings.defaultSelection = {
         providerConfigId: configId,
         modelId: 'gpt-4'
       }
-      await saveAISettingsV3(settings)
+      await saveAISettingsV2(settings)
 
       // Delete the model
       await deleteModelFromConfiguration(configId, 'gpt-4')
 
       // Check that default selection is cleared
-      const updatedSettings = await getAISettingsV3()
+      const updatedSettings = await getAISettingsV2()
       expect(updatedSettings.defaultSelection).toBeUndefined()
     })
   })

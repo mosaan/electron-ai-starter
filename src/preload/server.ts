@@ -27,12 +27,17 @@ export class Server {
     // AI Settings v2 APIs
     getAISettingsV2: (...args) => this._invoke('getAISettingsV2', ...args),
     saveAISettingsV2: (...args) => this._invoke('saveAISettingsV2', ...args),
-    getAIPresets: (...args) => this._invoke('getAIPresets', ...args),
-    createAIPreset: (...args) => this._invoke('createAIPreset', ...args),
-    updateAIPreset: (...args) => this._invoke('updateAIPreset', ...args),
-    deleteAIPreset: (...args) => this._invoke('deleteAIPreset', ...args),
-    updateProviderConfig: (...args) => this._invoke('updateProviderConfig', ...args),
-    getProviderConfig: (...args) => this._invoke('getProviderConfig', ...args),
+    // Provider Configuration APIs
+    getProviderConfigurations: (...args) => this._invoke('getProviderConfigurations', ...args),
+    getProviderConfiguration: (...args) => this._invoke('getProviderConfiguration', ...args),
+    createProviderConfiguration: (...args) => this._invoke('createProviderConfiguration', ...args),
+    updateProviderConfiguration: (...args) => this._invoke('updateProviderConfiguration', ...args),
+    deleteProviderConfiguration: (...args) => this._invoke('deleteProviderConfiguration', ...args),
+    // Model Management APIs
+    addModelToConfiguration: (...args) => this._invoke('addModelToConfiguration', ...args),
+    updateModelInConfiguration: (...args) => this._invoke('updateModelInConfiguration', ...args),
+    deleteModelFromConfiguration: (...args) => this._invoke('deleteModelFromConfiguration', ...args),
+    refreshModelsFromAPI: (...args) => this._invoke('refreshModelsFromAPI', ...args),
     // MCP Server Management
     listMCPServers: (...args) => this._invoke('listMCPServers', ...args),
     addMCPServer: (...args) => this._invoke('addMCPServer', ...args),
@@ -55,18 +60,6 @@ export class Server {
     testCertificateConnection: (...args) => this._invoke('testCertificateConnection', ...args),
     testCombinedConnection: (...args) => this._invoke('testCombinedConnection', ...args),
     testFullConnection: (...args) => this._invoke('testFullConnection', ...args),
-    // AI Settings v3 APIs
-    getAISettingsV3: (...args) => this._invoke('getAISettingsV3', ...args),
-    saveAISettingsV3: (...args) => this._invoke('saveAISettingsV3', ...args),
-    getProviderConfigurations: (...args) => this._invoke('getProviderConfigurations', ...args),
-    getProviderConfiguration: (...args) => this._invoke('getProviderConfiguration', ...args),
-    createProviderConfiguration: (...args) => this._invoke('createProviderConfiguration', ...args),
-    updateProviderConfiguration: (...args) => this._invoke('updateProviderConfiguration', ...args),
-    deleteProviderConfiguration: (...args) => this._invoke('deleteProviderConfiguration', ...args),
-    addModelToConfiguration: (...args) => this._invoke('addModelToConfiguration', ...args),
-    updateModelInConfiguration: (...args) => this._invoke('updateModelInConfiguration', ...args),
-    deleteModelFromConfiguration: (...args) => this._invoke('deleteModelFromConfiguration', ...args),
-    refreshModelsFromAPI: (...args) => this._invoke('refreshModelsFromAPI', ...args),
     onEvent: (channel: string, callback: (appEvent: AppEvent) => void) => {
       this._backendConnection!.onEvent(channel, callback)
     },

@@ -42,23 +42,7 @@ export interface AISettings {
   azure_model?: string
 }
 
-// v2 Settings with multi-preset support
-export interface AISettingsV2 {
-  version: 2
-  defaultPresetId?: string // Last used or user-defined default
-
-  // Provider-level configurations
-  providers: {
-    openai?: AIProviderConfig
-    anthropic?: AIProviderConfig
-    google?: AIProviderConfig
-    azure?: AzureProviderConfig
-  }
-
-  // User-defined presets (combinations of provider + model + parameters)
-  presets: AIModelPreset[]
-}
-
+// Provider-level configuration interfaces (used by both V1 and V2)
 export interface AIProviderConfig {
   apiKey: string
   baseURL?: string // Custom endpoint (e.g., for OpenAI-compatible APIs)
@@ -71,25 +55,9 @@ export interface AzureProviderConfig extends AIProviderConfig {
   useDeploymentBasedUrls?: boolean
 }
 
-export interface AIModelPreset {
-  id: string // UUID
-  name: string // Auto-generated: "{Provider} - {Model}"
-  provider: AIProvider
-  model: string
-  parameters?: {
-    temperature?: number
-    maxTokens?: number
-    topP?: number
-    topK?: number
-    // Other provider-specific parameters
-    [key: string]: unknown
-  }
-  createdAt: string // ISO 8601
-}
-
-// v3 Settings with multiple provider configurations
-export interface AISettingsV3 {
-  version: 3
+// v2 Settings with multiple provider configurations
+export interface AISettingsV2 {
+  version: 2
 
   // Last used provider config + model combination
   defaultSelection?: {
@@ -216,8 +184,7 @@ export interface BackendListenerAPI {
 
 // Options for AI text streaming
 export interface StreamAIOptions {
-  modelSelection?: AIModelSelection  // V3: Use specific model selection (providerConfigId + modelId)
-  presetId?: string                  // V2: Use specific preset (deprecated, for backward compatibility)
+  modelSelection?: AIModelSelection  // Use specific model selection (providerConfigId + modelId)
   provider?: AIProvider              // Override provider
   model?: string                     // Override model
   parameters?: Record<string, unknown>  // Override parameters
@@ -238,12 +205,17 @@ export interface RendererBackendAPI {
   // AI Settings v2 APIs
   getAISettingsV2: () => Promise<Result<AISettingsV2>>
   saveAISettingsV2: (settings: AISettingsV2) => Promise<Result<void>>
-  getAIPresets: () => Promise<Result<AIModelPreset[]>>
-  createAIPreset: (preset: Omit<AIModelPreset, 'id' | 'createdAt'>) => Promise<Result<string>>
-  updateAIPreset: (presetId: string, updates: Partial<Omit<AIModelPreset, 'id' | 'createdAt'>>) => Promise<Result<void>>
-  deleteAIPreset: (presetId: string) => Promise<Result<void>>
-  updateProviderConfig: (provider: AIProvider, config: AIProviderConfig | AzureProviderConfig) => Promise<Result<void>>
-  getProviderConfig: (provider: AIProvider) => Promise<Result<AIProviderConfig | AzureProviderConfig | undefined>>
+  // Provider Configuration APIs
+  getProviderConfigurations: () => Promise<Result<AIProviderConfiguration[]>>
+  getProviderConfiguration: (configId: string) => Promise<Result<AIProviderConfiguration | undefined>>
+  createProviderConfiguration: (config: Omit<AIProviderConfiguration, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Result<string>>
+  updateProviderConfiguration: (configId: string, updates: Partial<Omit<AIProviderConfiguration, 'id' | 'createdAt'>>) => Promise<Result<void>>
+  deleteProviderConfiguration: (configId: string) => Promise<Result<void>>
+  // Model Management APIs
+  addModelToConfiguration: (configId: string, model: Omit<AIModelDefinition, 'source' | 'addedAt'>) => Promise<Result<void>>
+  updateModelInConfiguration: (configId: string, modelId: string, updates: Partial<Omit<AIModelDefinition, 'id' | 'source' | 'addedAt'>>) => Promise<Result<void>>
+  deleteModelFromConfiguration: (configId: string, modelId: string) => Promise<Result<void>>
+  refreshModelsFromAPI: (configId: string) => Promise<Result<AIModelDefinition[]>>
   // MCP Server Management
   listMCPServers: () => Promise<Result<MCPServerWithStatus[]>>
   addMCPServer: (config: Omit<MCPServerConfig, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Result<string>>
@@ -269,30 +241,6 @@ export interface RendererBackendAPI {
     certSettings: CertificateSettings
   ) => Promise<Result<ConnectionTestResult>>
   testFullConnection: () => Promise<Result<ConnectionTestResult, string>>
-  // AI Settings v3 APIs
-  getAISettingsV3: () => Promise<Result<AISettingsV3>>
-  saveAISettingsV3: (settings: AISettingsV3) => Promise<Result<void>>
-  getProviderConfigurations: () => Promise<Result<AIProviderConfiguration[]>>
-  getProviderConfiguration: (configId: string) => Promise<Result<AIProviderConfiguration | undefined>>
-  createProviderConfiguration: (
-    config: Omit<AIProviderConfiguration, 'id' | 'createdAt' | 'updatedAt'>
-  ) => Promise<Result<string>>
-  updateProviderConfiguration: (
-    configId: string,
-    updates: Partial<Omit<AIProviderConfiguration, 'id' | 'createdAt'>>
-  ) => Promise<Result<void>>
-  deleteProviderConfiguration: (configId: string) => Promise<Result<void>>
-  addModelToConfiguration: (
-    configId: string,
-    model: Omit<AIModelDefinition, 'source' | 'addedAt'>
-  ) => Promise<Result<void>>
-  updateModelInConfiguration: (
-    configId: string,
-    modelId: string,
-    updates: Partial<Omit<AIModelDefinition, 'id' | 'source' | 'addedAt'>>
-  ) => Promise<Result<void>>
-  deleteModelFromConfiguration: (configId: string, modelId: string) => Promise<Result<void>>
-  refreshModelsFromAPI: (configId: string) => Promise<Result<AIModelDefinition[]>>
 }
 
 export interface RendererMainAPI {

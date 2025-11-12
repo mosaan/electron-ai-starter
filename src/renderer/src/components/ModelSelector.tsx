@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
-import type { AISettingsV3, AIProviderConfiguration, AIModelSelection } from '@common/types'
+import type { AISettingsV2, AIProviderConfiguration, AIModelSelection } from '@common/types'
 import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
 
@@ -21,7 +21,7 @@ export function ModelSelector({
   selectedModel,
   onModelChange
 }: ModelSelectorProps): React.JSX.Element {
-  const [settings, setSettings] = useState<AISettingsV3 | null>(null)
+  const [settings, setSettings] = useState<AISettingsV2 | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function ModelSelector({
   const loadSettings = async (): Promise<void> => {
     try {
       await window.connectBackend()
-      const result = await window.backend.getAISettingsV3()
+      const result = await window.backend.getAISettingsV2()
       if (isOk(result)) {
         setSettings(result.value)
 

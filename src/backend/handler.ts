@@ -5,7 +5,6 @@ import type {
   AIConfig,
   AISettings,
   AISettingsV2,
-  AISettingsV3,
   AIMessage,
   AppEvent,
   MCPServerConfig,
@@ -17,7 +16,6 @@ import type {
   ConnectionTestResult,
   MCPServerWithStatus,
   StreamAIOptions,
-  AIModelPreset,
   AIProviderConfig,
   AzureProviderConfig,
   AIProviderConfiguration,
@@ -38,15 +36,6 @@ import { testProxyConnection as runProxyTest, testCertificateConnection as runCe
 import {
   getAISettingsV2 as loadAISettingsV2,
   saveAISettingsV2,
-  getAIPresets as loadAIPresets,
-  createAIPreset as newAIPreset,
-  updateAIPreset as modifyAIPreset,
-  deleteAIPreset as removeAIPreset,
-  updateProviderConfig as modifyProviderConfig,
-  getProviderConfig as loadProviderConfig,
-  // V3 functions
-  getAISettingsV3 as loadAISettingsV3,
-  saveAISettingsV3,
   getProviderConfigurations as loadProviderConfigurations,
   getProviderConfiguration as loadProviderConfiguration,
   createProviderConfiguration as newProviderConfiguration,
@@ -113,15 +102,15 @@ export class Handler {
     let apiKey: string
     let providerConfig: AIProviderConfig | AzureProviderConfig | undefined
 
-    // Resolution logic: V3 modelSelection → V2 preset ID → explicit provider/model → default preset → first available preset
+    // Resolution logic: modelSelection → explicit provider/model → V1 fallback
 
-    // V3: Check for modelSelection first
     if (options?.modelSelection) {
-      const settingsV3 = await loadAISettingsV3()
+      // Use model selection from V2 settings
+      const settings = await loadAISettingsV2()
       const { providerConfigId, modelId } = options.modelSelection
 
       // Find the provider configuration
-      const config = settingsV3.providerConfigs.find(c => c.id === providerConfigId)
+      const config = settings.providerConfigs.find(c => c.id === providerConfigId)
       if (!config) {
         throw new Error(`Provider configuration not found: ${providerConfigId}`)
       }
@@ -145,96 +134,31 @@ export class Handler {
       apiKey = config.config.apiKey
       providerConfig = config.config
 
-      logger.info(`V3: Using model selection: ${config.name} (${providerConfigId}) - ${model.displayName || model.id}`)
-    }
-    // V2: Fall back to preset-based resolution
-    else if (options?.presetId) {
-      // Load v2 settings (auto-migrates from v1 if needed)
-      const settingsV2 = await loadAISettingsV2()
-      let selectedPreset: AIModelPreset | undefined
-      // Use specified preset
-      selectedPreset = settingsV2.presets.find(p => p.id === options.presetId)
-      if (!selectedPreset) {
-        throw new Error(`Preset not found: ${options.presetId}`)
-      }
-      logger.info(`Using preset: ${selectedPreset.name} (${selectedPreset.id})`)
+      logger.info(`Using model selection: ${config.name} (${providerConfigId}) - ${model.displayName || model.id}`)
+    } else if (options?.provider) {
+      // Use explicit provider/model override
+      selectedProvider = options.provider
+      selectedModel = options.model || FACTORY[selectedProvider].default
 
-      // Extract provider, model, and API key from preset
-      selectedProvider = selectedPreset.provider
-      selectedModel = selectedPreset.model
-
-      const presetProviderConfig = settingsV2.providers[selectedProvider]
-      if (!presetProviderConfig?.apiKey) {
-        throw new Error(`API key not configured for provider: ${selectedProvider}`)
-      }
-      apiKey = presetProviderConfig.apiKey
-      providerConfig = presetProviderConfig
+      logger.info(`Using explicit provider override: ${selectedProvider} - ${selectedModel}`)
     } else {
-      // Load v2 settings for remaining resolution logic
-      const settingsV2 = await loadAISettingsV2()
-      let selectedPreset: AIModelPreset | undefined
-
-      if (options?.provider) {
-        // Use explicit provider/model override
-        selectedProvider = options.provider
-        selectedModel = options.model || FACTORY[selectedProvider].default
-
-        logger.info(`Using explicit provider override: ${selectedProvider} - ${selectedModel}`)
-      } else if (settingsV2.defaultPresetId) {
-        // Use default preset
-        selectedPreset = settingsV2.presets.find(p => p.id === settingsV2.defaultPresetId)
-        if (!selectedPreset) {
-          throw new Error(`Default preset not found: ${settingsV2.defaultPresetId}`)
-        }
-        logger.info(`Using default preset: ${selectedPreset.name}`)
-      } else if (settingsV2.presets.length > 0) {
-        // Use first available preset with valid API key
-        for (const preset of settingsV2.presets) {
-          const presetProviderConfig = settingsV2.providers[preset.provider]
-          if (presetProviderConfig?.apiKey) {
-            selectedPreset = preset
-            break
-          }
-        }
-        if (!selectedPreset) {
-          throw new Error('No preset with valid API key found')
-        }
-        logger.info(`Using first available preset: ${selectedPreset.name}`)
-      } else {
-        // Fallback to v1 settings if no presets
-        logger.warn('No v2 presets found, falling back to v1 settings')
-        const aiSettings = await getSetting<AISettings>('ai')
-        if (!aiSettings?.default_provider) {
-          throw new Error('No AI provider configured')
-        }
-
-        selectedProvider = aiSettings.default_provider
-        const apiKeyField = `${selectedProvider}_api_key` as keyof AISettings
-        apiKey = aiSettings[apiKeyField] as string
-
-        if (!apiKey) {
-          throw new Error(`API key not found for provider: ${selectedProvider}`)
-        }
-
-        const modelField = `${selectedProvider}_model` as keyof AISettings
-        selectedModel = (aiSettings[modelField] as string) || FACTORY[selectedProvider].default
+      // Fallback to v1 settings
+      logger.warn('No model selection provided, falling back to v1 settings')
+      const aiSettings = await getSetting<AISettings>('ai')
+      if (!aiSettings?.default_provider) {
+        throw new Error('No AI provider configured')
       }
 
-      // Extract provider, model, and API key from preset (if using preset-based resolution)
-      if (selectedPreset) {
-        selectedProvider = selectedPreset.provider
-        selectedModel = selectedPreset.model
+      selectedProvider = aiSettings.default_provider
+      const apiKeyField = `${selectedProvider}_api_key` as keyof AISettings
+      apiKey = aiSettings[apiKeyField] as string
 
-        const presetProviderConfig = settingsV2.providers[selectedProvider]
-        if (!presetProviderConfig?.apiKey) {
-          throw new Error(`API key not configured for provider: ${selectedProvider}`)
-        }
-        apiKey = presetProviderConfig.apiKey
-        providerConfig = presetProviderConfig
-      } else if (!providerConfig) {
-        // Get provider configuration for explicit overrides
-        providerConfig = settingsV2.providers[selectedProvider!]
+      if (!apiKey) {
+        throw new Error(`API key not found for provider: ${selectedProvider}`)
       }
+
+      const modelField = `${selectedProvider}_model` as keyof AISettings
+      selectedModel = (aiSettings[modelField] as string) || FACTORY[selectedProvider].default
     }
 
     // Create config object
@@ -295,44 +219,6 @@ export class Handler {
   async saveAISettingsV2(settings: AISettingsV2): Promise<Result<void>> {
     await saveAISettingsV2(settings)
     return ok(undefined)
-  }
-
-  async getAIPresets(): Promise<Result<AIModelPreset[]>> {
-    const presets = await loadAIPresets()
-    return ok(presets)
-  }
-
-  async createAIPreset(preset: Omit<AIModelPreset, 'id' | 'createdAt'>): Promise<Result<string>> {
-    const presetId = await newAIPreset(preset)
-    return ok(presetId)
-  }
-
-  async updateAIPreset(
-    presetId: string,
-    updates: Partial<Omit<AIModelPreset, 'id' | 'createdAt'>>
-  ): Promise<Result<void>> {
-    await modifyAIPreset(presetId, updates)
-    return ok(undefined)
-  }
-
-  async deleteAIPreset(presetId: string): Promise<Result<void>> {
-    await removeAIPreset(presetId)
-    return ok(undefined)
-  }
-
-  async updateProviderConfig(
-    provider: AIProvider,
-    config: AIProviderConfig | AzureProviderConfig
-  ): Promise<Result<void>> {
-    await modifyProviderConfig(provider, config)
-    return ok(undefined)
-  }
-
-  async getProviderConfig(
-    provider: AIProvider
-  ): Promise<Result<AIProviderConfig | AzureProviderConfig | undefined>> {
-    const config = await loadProviderConfig(provider)
-    return ok(config)
   }
 
   // Proxy settings handlers
@@ -441,17 +327,7 @@ export class Handler {
     return await mcpManager.callTool(serverId, toolName, args)
   }
 
-  // AI Settings v3 handlers
-  async getAISettingsV3(): Promise<Result<AISettingsV3>> {
-    const settings = await loadAISettingsV3()
-    return ok(settings)
-  }
-
-  async saveAISettingsV3(settings: AISettingsV3): Promise<Result<void>> {
-    await saveAISettingsV3(settings)
-    return ok(undefined)
-  }
-
+  // Provider Configuration Handlers
   async getProviderConfigurations(): Promise<Result<AIProviderConfiguration[]>> {
     const configs = await loadProviderConfigurations()
     return ok(configs)
