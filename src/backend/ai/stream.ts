@@ -18,7 +18,7 @@ export async function streamSessionText(
   tools?: Record<string, any>
 ): Promise<void> {
   try {
-    const model = await createModel(config.provider, config.apiKey, config.model)
+    const model = await createModel(config)
 
     // Add abort signal listener for logging
     session.abortSignal.addEventListener('abort', () => {
@@ -79,6 +79,16 @@ export async function streamSessionText(
             toolCallId: chunk.toolCallId,
             input: chunk.input
           })
+          // Send tool call to renderer
+          publishEvent('aiToolCall', {
+            type: EventType.Message,
+            payload: {
+              sessionId: session.id,
+              toolCallId: chunk.toolCallId,
+              toolName: chunk.toolName,
+              input: chunk.input
+            }
+          })
           break
 
         case 'tool-result':
@@ -86,6 +96,16 @@ export async function streamSessionText(
           logger.info(`[MCP] Tool result received: ${chunk.toolName}`, {
             toolCallId: chunk.toolCallId,
             output: typeof chunk.output === 'string' ? chunk.output.substring(0, 200) : chunk.output
+          })
+          // Send tool result to renderer
+          publishEvent('aiToolResult', {
+            type: EventType.Message,
+            payload: {
+              sessionId: session.id,
+              toolCallId: chunk.toolCallId,
+              toolName: chunk.toolName,
+              output: chunk.output
+            }
           })
           break
 

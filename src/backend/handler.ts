@@ -1,5 +1,26 @@
 import { Connection } from '@common/connection'
-import type { Result, AIProvider, AIConfig, AISettings, AIMessage, AppEvent, MCPServerConfig, MCPResource, MCPTool, MCPPrompt, ProxySettings, CertificateSettings, ConnectionTestResult } from '@common/types'
+import type {
+  Result,
+  AIProvider,
+  AIConfig,
+  AISettings,
+  AISettingsV2,
+  AIMessage,
+  AppEvent,
+  MCPServerConfig,
+  MCPResource,
+  MCPTool,
+  MCPPrompt,
+  ProxySettings,
+  CertificateSettings,
+  ConnectionTestResult,
+  MCPServerWithStatus,
+  StreamAIOptions,
+  AIProviderConfig,
+  AzureProviderConfig,
+  AIProviderConfiguration,
+  AIModelDefinition
+} from '@common/types'
 import { ok, error, isOk } from '@common/result'
 import { dirname } from 'path'
 import { getSetting, setSetting, getAllSettings, clearSetting } from './settings'
@@ -7,11 +28,24 @@ import { getDatabasePath, getLogPath } from './paths'
 import logger from './logger'
 import { streamText, abortStream, listAvailableModel, testConnection } from './ai'
 import { FACTORY } from './ai/factory'
-import { close, db, destroy } from './db'
+import { db } from './db'
 import { mcpManager } from './mcp'
 import { getProxySettings as loadProxySettings, setProxySettings as saveProxySettings, getSystemProxySettings as loadSystemProxySettings } from './settings/proxy'
 import { getCertificateSettings as loadCertificateSettings, setCertificateSettings as saveCertificateSettings, getSystemCertificateSettings as loadSystemCertificateSettings } from './settings/certificate'
 import { testProxyConnection as runProxyTest, testCertificateConnection as runCertificateTest, testCombinedConnection as runCombinedTest } from './settings/connectionTest'
+import {
+  getAISettingsV2 as loadAISettingsV2,
+  saveAISettingsV2,
+  getProviderConfigurations as loadProviderConfigurations,
+  getProviderConfiguration as loadProviderConfiguration,
+  createProviderConfiguration as newProviderConfiguration,
+  updateProviderConfiguration as modifyProviderConfiguration,
+  deleteProviderConfiguration as removeProviderConfiguration,
+  addModelToConfiguration,
+  updateModelInConfiguration,
+  deleteModelFromConfiguration,
+  refreshModelsFromAPI
+} from './settings/ai-settings'
 
 export class Handler {
   private _rendererConnection: Connection
@@ -45,12 +79,6 @@ export class Handler {
     return ok(undefined)
   }
 
-  async clearDatabase(): Promise<Result<void, string>> {
-    close(db)
-    destroy()
-    return ok(undefined)
-  }
-
   async getDatabasePath(): Promise<Result<string>> {
     const dbPath = getDatabasePath()
     return ok(dirname(dbPath))
@@ -62,38 +90,85 @@ export class Handler {
   }
 
   // AI handlers
-  async streamAIText(messages: AIMessage[]): Promise<Result<string>> {
-    // Get AI settings from database
-    const aiSettings = await getSetting<AISettings>('ai')
+  async streamAIText(messages: AIMessage[], options?: StreamAIOptions): Promise<Result<string>> {
+    let selectedProvider: AIProvider
+    let selectedModel: string
+    let apiKey: string
+    let providerConfig: AIProviderConfig | AzureProviderConfig | undefined
 
-    if (!aiSettings) throw new Error('No AI setting has been created')
+    // Resolution logic: modelSelection → explicit provider/model → V1 fallback
 
-    if (!aiSettings.default_provider)
-      throw new Error('No default AI provider found in the settings')
+    if (options?.modelSelection) {
+      // Use model selection from V2 settings
+      const settings = await loadAISettingsV2()
+      const { providerConfigId, modelId } = options.modelSelection
 
-    // Determine which provider to use
-    const selectedProvider = aiSettings.default_provider!
+      // Find the provider configuration
+      const config = settings.providerConfigs.find(c => c.id === providerConfigId)
+      if (!config) {
+        throw new Error(`Provider configuration not found: ${providerConfigId}`)
+      }
+      if (!config.enabled) {
+        throw new Error(`Provider configuration is disabled: ${config.name}`)
+      }
 
-    // Get API key for the selected provider
-    const apiKeyField = `${selectedProvider}_api_key` as keyof AISettings
-    const apiKey = aiSettings[apiKeyField] as string
+      // Find the model
+      const model = config.models.find(m => m.id === modelId)
+      if (!model) {
+        throw new Error(`Model not found in configuration: ${modelId}`)
+      }
 
-    if (!apiKey) {
-      throw new Error(`API key not found for provider: ${selectedProvider}`)
+      // Validate API key
+      if (!config.config.apiKey) {
+        throw new Error(`API key not configured for: ${config.name}`)
+      }
+
+      selectedProvider = config.type as AIProvider
+      selectedModel = model.id
+      apiKey = config.config.apiKey
+      providerConfig = config.config
+
+      logger.info(`Using model selection: ${config.name} (${providerConfigId}) - ${model.displayName || model.id}`)
+    } else if (options?.provider) {
+      // Use explicit provider/model override
+      selectedProvider = options.provider
+      selectedModel = options.model || FACTORY[selectedProvider].default
+
+      logger.info(`Using explicit provider override: ${selectedProvider} - ${selectedModel}`)
+    } else {
+      // Fallback to v1 settings
+      logger.warn('No model selection provided, falling back to v1 settings')
+      const aiSettings = await getSetting<AISettings>('ai')
+      if (!aiSettings?.default_provider) {
+        throw new Error('No AI provider configured')
+      }
+
+      selectedProvider = aiSettings.default_provider
+      const apiKeyField = `${selectedProvider}_api_key` as keyof AISettings
+      apiKey = aiSettings[apiKeyField] as string
+
+      if (!apiKey) {
+        throw new Error(`API key not found for provider: ${selectedProvider}`)
+      }
+
+      const modelField = `${selectedProvider}_model` as keyof AISettings
+      selectedModel = (aiSettings[modelField] as string) || FACTORY[selectedProvider].default
     }
-
-    // Get model for the selected provider
-    const modelField = `${selectedProvider}_model` as keyof AISettings
-    const model = (aiSettings[modelField] as string) || FACTORY[selectedProvider].default
 
     // Create config object
     const config: AIConfig = {
-      provider: selectedProvider,
-      model,
-      apiKey
+      provider: selectedProvider!,
+      model: selectedModel!,
+      apiKey: apiKey!,
+      baseURL: providerConfig?.baseURL,
+      // Azure-specific fields
+      resourceName: (providerConfig as AzureProviderConfig)?.resourceName,
+      useDeploymentBasedUrls: (providerConfig as AzureProviderConfig)?.useDeploymentBasedUrls
     }
 
-    // Get MCP tools from all active servers (Phase 3)
+    logger.info(`Streaming with ${config.provider} - ${config.model}`)
+
+    // Get MCP tools from all active servers
     const mcpTools = await mcpManager.getAllTools()
     const toolCount = Object.keys(mcpTools).length
     logger.info(`Streaming AI text with ${toolCount} MCP tool(s) available`)
@@ -127,6 +202,17 @@ export class Handler {
   async testAIProviderConnection(config: AIConfig): Promise<Result<boolean>> {
     const result = await testConnection(config)
     return ok(result)
+  }
+
+  // AI Settings v2 handlers
+  async getAISettingsV2(): Promise<Result<AISettingsV2>> {
+    const settings = await loadAISettingsV2()
+    return ok(settings)
+  }
+
+  async saveAISettingsV2(settings: AISettingsV2): Promise<Result<void>> {
+    await saveAISettingsV2(settings)
+    return ok(undefined)
   }
 
   // Proxy settings handlers
@@ -194,7 +280,7 @@ export class Handler {
   }
 
   // MCP Server Management
-  async listMCPServers(): Promise<Result<MCPServerConfig[], string>> {
+  async listMCPServers(): Promise<Result<MCPServerWithStatus[], string>> {
     return await mcpManager.listServers()
   }
 
@@ -233,5 +319,66 @@ export class Handler {
     args: unknown
   ): Promise<Result<unknown, string>> {
     return await mcpManager.callTool(serverId, toolName, args)
+  }
+
+  // Provider Configuration Handlers
+  async getProviderConfigurations(): Promise<Result<AIProviderConfiguration[]>> {
+    const configs = await loadProviderConfigurations()
+    return ok(configs)
+  }
+
+  async getProviderConfiguration(configId: string): Promise<Result<AIProviderConfiguration | undefined>> {
+    const config = await loadProviderConfiguration(configId)
+    return ok(config)
+  }
+
+  async createProviderConfiguration(
+    config: Omit<AIProviderConfiguration, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<Result<string>> {
+    const configId = await newProviderConfiguration(config)
+    return ok(configId)
+  }
+
+  async updateProviderConfiguration(
+    configId: string,
+    updates: Partial<Omit<AIProviderConfiguration, 'id' | 'createdAt'>>
+  ): Promise<Result<void>> {
+    await modifyProviderConfiguration(configId, updates)
+    return ok(undefined)
+  }
+
+  async deleteProviderConfiguration(configId: string): Promise<Result<void>> {
+    await removeProviderConfiguration(configId)
+    return ok(undefined)
+  }
+
+  async addModelToConfiguration(
+    configId: string,
+    model: Omit<AIModelDefinition, 'source' | 'addedAt'>
+  ): Promise<Result<void>> {
+    await addModelToConfiguration(configId, model)
+    return ok(undefined)
+  }
+
+  async updateModelInConfiguration(
+    configId: string,
+    modelId: string,
+    updates: Partial<Omit<AIModelDefinition, 'id' | 'source' | 'addedAt'>>
+  ): Promise<Result<void>> {
+    await updateModelInConfiguration(configId, modelId, updates)
+    return ok(undefined)
+  }
+
+  async deleteModelFromConfiguration(
+    configId: string,
+    modelId: string
+  ): Promise<Result<void>> {
+    await deleteModelFromConfiguration(configId, modelId)
+    return ok(undefined)
+  }
+
+  async refreshModelsFromAPI(configId: string): Promise<Result<AIModelDefinition[]>> {
+    const models = await refreshModelsFromAPI(configId)
+    return ok(models)
   }
 }

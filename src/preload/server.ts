@@ -20,13 +20,26 @@ export class Server {
     getSetting: (...args) => this._invoke('getSetting', ...args),
     setSetting: (...args) => this._invoke('setSetting', ...args),
     clearSetting: (...args) => this._invoke('clearSetting', ...args),
-    clearDatabase: (...args) => this._invoke('clearDatabase', ...args),
     getDatabasePath: (...args) => this._invoke('getDatabasePath', ...args),
     getLogPath: (...args) => this._invoke('getLogPath', ...args),
     streamAIText: (...args) => this._invoke('streamAIText', ...args),
     abortAIText: (...args) => this._invoke('abortAIText', ...args),
     getAIModels: (...args) => this._invoke('getAIModels', ...args),
     testAIProviderConnection: (...args) => this._invoke('testAIProviderConnection', ...args),
+    // AI Settings v2 APIs
+    getAISettingsV2: (...args) => this._invoke('getAISettingsV2', ...args),
+    saveAISettingsV2: (...args) => this._invoke('saveAISettingsV2', ...args),
+    // Provider Configuration APIs
+    getProviderConfigurations: (...args) => this._invoke('getProviderConfigurations', ...args),
+    getProviderConfiguration: (...args) => this._invoke('getProviderConfiguration', ...args),
+    createProviderConfiguration: (...args) => this._invoke('createProviderConfiguration', ...args),
+    updateProviderConfiguration: (...args) => this._invoke('updateProviderConfiguration', ...args),
+    deleteProviderConfiguration: (...args) => this._invoke('deleteProviderConfiguration', ...args),
+    // Model Management APIs
+    addModelToConfiguration: (...args) => this._invoke('addModelToConfiguration', ...args),
+    updateModelInConfiguration: (...args) => this._invoke('updateModelInConfiguration', ...args),
+    deleteModelFromConfiguration: (...args) => this._invoke('deleteModelFromConfiguration', ...args),
+    refreshModelsFromAPI: (...args) => this._invoke('refreshModelsFromAPI', ...args),
     // MCP Server Management
     listMCPServers: (...args) => this._invoke('listMCPServers', ...args),
     addMCPServer: (...args) => this._invoke('addMCPServer', ...args),

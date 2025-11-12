@@ -38,6 +38,7 @@ A modern, full-featured Electron application template with TypeScript, React, Dr
   - Multi-step tool calling with automatic execution
   - Support for multiple MCP servers simultaneously
   - Comprehensive logging of tool interactions
+  - Live runtime status with stderr/error diagnostics for each server
 - **[Assistant UI](https://github.com/Yonom/assistant-ui)** - Production-ready chat interface with streaming support
 
 ## Get Started
