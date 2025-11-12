@@ -7,12 +7,13 @@ import {
   CardHeader,
   CardTitle
 } from '@renderer/components/ui/card'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, AlertCircle } from 'lucide-react'
 import type { AISettingsV2, AIProviderConfiguration } from '@common/types'
 import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
 import { Switch } from '@renderer/components/ui/switch'
 import { Badge } from '@renderer/components/ui/badge'
+import { Alert, AlertDescription, AlertTitle } from '@renderer/components/ui/alert'
 import { ProviderConfigDialog } from './ProviderConfigDialog'
 
 interface AISettingsV2Props {
@@ -145,6 +146,17 @@ export function AISettingsV2Component({ className = '' }: AISettingsV2Props): Re
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!settings || settings.providerConfigs.length === 0 ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>No AI Provider Configured</AlertTitle>
+            <AlertDescription>
+              You need to configure at least one AI provider to use the chat feature. Click "Add New
+              Configuration" below to get started.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <Button className="w-full" variant="outline" onClick={handleAddNew}>
           <Plus className="mr-2 h-4 w-4" />
           Add New Configuration

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { MessageCircle, Settings } from 'lucide-react'
+import { MessageCircle, Settings, AlertCircle } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { Thread } from '@renderer/components/assistant-ui/thread'
 import { AIRuntimeProvider } from '@renderer/components/AIRuntimeProvider'
 import { ModelSelector } from '@renderer/components/ModelSelector'
+import { Alert, AlertDescription, AlertTitle } from '@renderer/components/ui/alert'
 import type { AIModelSelection } from '@common/types'
+import { isOk } from '@common/result'
 
 interface ChatPageProps {
   onSettings: () => void
@@ -25,6 +27,21 @@ export function ChatPage({ onSettings }: ChatPageProps): React.JSX.Element {
     }
     return null
   })
+  const [hasProviderConfigs, setHasProviderConfigs] = useState<boolean>(true)
+
+  // Check if there are any provider configurations
+  useEffect(() => {
+    const checkProviderConfigs = async (): Promise<void> => {
+      await window.connectBackend()
+      const result = await window.backend.getAISettingsV2()
+      if (isOk(result)) {
+        const hasConfigs =
+          result.value?.providerConfigs && result.value.providerConfigs.length > 0
+        setHasProviderConfigs(hasConfigs)
+      }
+    }
+    checkProviderConfigs()
+  }, [])
 
   // Persist model selection to localStorage
   useEffect(() => {
@@ -60,9 +77,25 @@ export function ChatPage({ onSettings }: ChatPageProps): React.JSX.Element {
       </header>
 
       <main className="flex-1 overflow-hidden">
-        <AIRuntimeProvider modelSelection={selectedModel}>
-          <Thread />
-        </AIRuntimeProvider>
+        {!hasProviderConfigs ? (
+          <div className="h-full flex items-center justify-center p-4">
+            <Alert variant="destructive" className="max-w-md">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No AI Provider Configured</AlertTitle>
+              <AlertDescription className="mt-2 space-y-3">
+                <p>You need to configure at least one AI provider to use the chat feature.</p>
+                <Button variant="outline" onClick={onSettings} className="w-full">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Go to Settings
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : (
+          <AIRuntimeProvider modelSelection={selectedModel}>
+            <Thread />
+          </AIRuntimeProvider>
+        )}
       </main>
     </div>
   )
