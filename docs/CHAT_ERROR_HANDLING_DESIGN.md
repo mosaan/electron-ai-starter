@@ -84,8 +84,7 @@ sequenceDiagram
 
 1. **エラーメッセージの表示**: チャット履歴内に、ユーザーメッセージの直後にエラーメッセージを表示
 2. **自動復元**: 失敗したメッセージを入力フィールドに自動的に復元
-3. **フォーカス**: 入力フィールドにフォーカスを移動（すぐに編集・再送信可能）
-4. **状態の保持**: 入力フィールドには復元されたメッセージが残り、ユーザーが編集または再送信できる
+3. **編集と再送信**: ユーザーは復元されたメッセージを編集して再送信できる
 
 ---
 
@@ -99,43 +98,23 @@ sequenceDiagram
 ┌─────────────────────────────────────────────────┐
 │ ⚠️ メッセージの送信に失敗しました                │
 │                                                 │
-│ ネットワーク接続を確認してください。              │
-│ 入力フィールドにメッセージが復元されています。     │
-│                                                 │
-│ [詳細を表示] [設定を開く]                        │
+│ [詳細を表示]                                     │
 └─────────────────────────────────────────────────┘
 ```
 
 #### デザイン要素
 
-- **アイコン**: ⚠️（警告）または ❌（エラー）を使用
-- **背景色**: 薄いオレンジまたは薄い赤（`bg-orange-50` / `bg-red-50`）
-- **境界線**: オレンジまたは赤（`border-orange-200` / `border-red-200`）
-- **テキスト**: エラーの種類に応じた説明
-- **アクションボタン**:
-  - 「詳細を表示」（技術的なエラー詳細を展開）
-  - 「設定を開く」（設定に関連するエラーの場合のみ表示）
+- **アイコン**: ⚠️（警告）を使用
+- **背景色**: 薄いオレンジ（`bg-orange-50`）
+- **境界線**: オレンジ（`border-orange-200`）
+- **メッセージ**: シンプルに「メッセージの送信に失敗しました」のみ
+- **アクションボタン**: 「詳細を表示」（技術的なエラー詳細を展開）
 
 ### 入力フィールドの状態
 
-```
-┌─────────────────────────────────────────────────┐
-│ このメッセージの送信に失敗しました。              │
-│ 編集して再送信するか、そのまま送信してください。   │
-└─────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────┐
-│ [復元されたメッセージがここに表示される]          │
-│                                                 │
-└─────────────────────────────────────────────────┘
-          [再送信] [クリア]
-```
-
-#### インタラクション
-
-- **復元時**: 入力フィールドにメッセージが自動的に入り、フォーカスが移動
+- **復元時**: 入力フィールドに失敗したメッセージが自動的に復元される
 - **編集可能**: ユーザーは自由にメッセージを編集できる
-- **再送信**: 「送信」ボタンをクリックして再送信
-- **クリア**: 復元されたメッセージを削除し、新しいメッセージを入力できる
+- **再送信**: 通常の「送信」ボタンで再送信
 
 ---
 
@@ -143,38 +122,30 @@ sequenceDiagram
 
 ### エラーカテゴリー
 
-| エラーの種類 | 原因例 | メッセージ | アクション |
-|-------------|--------|-----------|-----------|
-| **ネットワークエラー** | 接続タイムアウト、DNS解決失敗 | "ネットワーク接続を確認してください。" | リトライ、プロキシ設定確認 |
-| **認証エラー** | 無効な API キー、期限切れ | "API キーが無効です。設定を確認してください。" | 設定画面へのリンク |
-| **レート制限** | API 呼び出し上限 | "レート制限に達しました。しばらく待ってから再試行してください。" | 待機時間の表示 |
-| **モデル選択エラー** | モデル未選択、無効なモデル | "モデルが選択されていません。" | モデル選択画面へのリンク |
-| **プロバイダーエラー** | サービス障害、無効な設定 | "AI プロバイダーからエラーが返されました。" | 詳細表示、設定確認 |
-| **不明なエラー** | その他の予期しないエラー | "予期しないエラーが発生しました。" | 詳細表示、ログ確認 |
+エラーは以下のカテゴリーに分類されますが、ユーザーに表示されるメッセージは常に「メッセージの送信に失敗しました」で統一します。詳細情報は「詳細を表示」ボタンで展開表示されます。
+
+| エラーの種類 | 原因例 | 詳細に表示される情報 |
+|-------------|--------|---------------------|
+| **ネットワークエラー** | 接続タイムアウト、DNS解決失敗 | ネットワーク接続エラー、プロキシ設定の確認を促す |
+| **認証エラー** | 無効な API キー、期限切れ | HTTP 401/403、API キーの確認を促す |
+| **レート制限** | API 呼び出し上限 | HTTP 429、しばらく待つよう促す |
+| **プロバイダーエラー** | サービス障害、無効な設定 | HTTP 4xx/5xx、プロバイダーからのエラーメッセージ |
+| **不明なエラー** | その他の予期しないエラー | 技術的なエラーメッセージ、タイムスタンプ |
 
 ### エラーメッセージの構造
 
 ```typescript
 interface ChatError {
-  // エラーの種類（カテゴリー）
-  type: 'network' | 'auth' | 'rate_limit' | 'model_selection' | 'provider' | 'unknown'
+  // エラーの種類（内部分類用、UI には表示しない）
+  type: 'network' | 'auth' | 'rate_limit' | 'provider' | 'unknown'
 
-  // ユーザー向けメッセージ
-  message: string
-
-  // 技術的な詳細（オプション、展開可能）
-  details?: {
+  // 技術的な詳細（「詳細を表示」で展開表示）
+  details: {
     statusCode?: number
     errorCode?: string
     errorMessage?: string
     timestamp: string
   }
-
-  // 推奨されるアクション
-  actions?: Array<{
-    type: 'retry' | 'settings' | 'details'
-    label: string
-  }>
 }
 ```
 
@@ -182,49 +153,47 @@ interface ChatError {
 
 ```typescript
 function categorizeError(error: unknown): ChatError {
+  const timestamp = new Date().toISOString()
+
   // ネットワークエラー
   if (error instanceof TypeError && error.message.includes('fetch')) {
     return {
       type: 'network',
-      message: 'ネットワーク接続を確認してください。',
-      actions: [{ type: 'retry', label: '再試行' }]
+      details: {
+        errorMessage: error.message,
+        timestamp
+      }
     }
   }
 
   // HTTP ステータスコードベースの判定
   if (error instanceof Response) {
-    if (error.status === 401 || error.status === 403) {
-      return {
-        type: 'auth',
-        message: 'API キーが無効です。設定を確認してください。',
-        actions: [
-          { type: 'settings', label: '設定を開く' },
-          { type: 'retry', label: '再試行' }
-        ]
-      }
+    const statusCode = error.status
+    let type: ChatError['type'] = 'provider'
+
+    if (statusCode === 401 || statusCode === 403) {
+      type = 'auth'
+    } else if (statusCode === 429) {
+      type = 'rate_limit'
     }
 
-    if (error.status === 429) {
-      return {
-        type: 'rate_limit',
-        message: 'レート制限に達しました。しばらく待ってから再試行してください。',
-        actions: [{ type: 'retry', label: '再試行' }]
+    return {
+      type,
+      details: {
+        statusCode,
+        errorMessage: error.statusText || String(error),
+        timestamp
       }
     }
   }
 
-  // デフォルト
+  // デフォルト（不明なエラー）
   return {
     type: 'unknown',
-    message: '予期しないエラーが発生しました。',
     details: {
       errorMessage: String(error),
-      timestamp: new Date().toISOString()
-    },
-    actions: [
-      { type: 'details', label: '詳細を表示' },
-      { type: 'retry', label: '再試行' }
-    ]
+      timestamp
+    }
   }
 }
 ```
@@ -241,10 +210,7 @@ Thread (assistant-ui)
 ├── ErrorMessage (新規コンポーネント)
 │   ├── ErrorIcon
 │   ├── ErrorTitle
-│   ├── ErrorDescription
-│   └── ErrorActions
-│       ├── ShowDetailsButton
-│       └── GoToSettingsButton
+│   └── ShowDetailsButton (展開可能)
 └── Message (AI レスポンス)
 ```
 
@@ -255,17 +221,11 @@ interface ChatState {
   // 現在の入力値
   inputValue: string
 
-  // 送信失敗したメッセージ（復元用）
-  failedMessage: string | null
-
-  // 最後のエラー情報
-  lastError: ChatError | null
-
   // メッセージ履歴
   messages: Array<{
     id: string
     role: 'user' | 'assistant' | 'error'
-    content: string
+    content?: string
     error?: ChatError
   }>
 }
@@ -292,21 +252,12 @@ async function handleSendMessage(message: string) {
     // エラーメッセージを履歴に追加
     addMessage({
       role: 'error',
-      content: chatError.message,
       error: chatError
     })
 
     // 失敗したメッセージを入力フィールドに復元
-    restoreMessageToInput(message)
-
-    // 入力フィールドにフォーカス
-    focusInput()
+    setInputValue(message)
   }
-}
-
-function restoreMessageToInput(message: string) {
-  setInputValue(message)
-  setFailedMessage(message)
 }
 ```
 
@@ -315,11 +266,9 @@ function restoreMessageToInput(message: string) {
 ```typescript
 interface ErrorMessageProps {
   error: ChatError
-  onRetry?: () => void
-  onGoToSettings?: () => void
 }
 
-function ErrorMessage({ error, onRetry, onGoToSettings }: ErrorMessageProps) {
+function ErrorMessage({ error }: ErrorMessageProps) {
   const [showDetails, setShowDetails] = useState(false)
 
   return (
@@ -327,38 +276,20 @@ function ErrorMessage({ error, onRetry, onGoToSettings }: ErrorMessageProps) {
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>メッセージの送信に失敗しました</AlertTitle>
       <AlertDescription>
-        <p>{error.message}</p>
-        <p className="text-sm mt-1">
-          入力フィールドにメッセージが復元されています。
-        </p>
-
-        {showDetails && error.details && (
-          <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+        {showDetails && (
+          <div className="mt-2 p-2 bg-gray-100 rounded text-xs font-mono">
             <pre>{JSON.stringify(error.details, null, 2)}</pre>
           </div>
         )}
 
-        <div className="flex gap-2 mt-3">
-          {error.details && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDetails(!showDetails)}
-            >
-              {showDetails ? '詳細を隠す' : '詳細を表示'}
-            </Button>
-          )}
-
-          {error.type === 'auth' || error.type === 'model_selection' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onGoToSettings}
-            >
-              <Settings className="mr-1 h-3 w-3" />
-              設定を開く
-            </Button>
-          ) : null}
+        <div className="mt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            {showDetails ? '詳細を隠す' : '詳細を表示'}
+          </Button>
         </div>
       </AlertDescription>
     </Alert>
@@ -420,20 +351,15 @@ graph TB
     Error --> Categorize[エラーを分類]
     Categorize --> ShowError[エラーメッセージを表示]
     ShowError --> Restore[入力フィールドに復元]
-    Restore --> Focus[フォーカスを移動]
-    Focus --> UserAction{ユーザーの操作}
+    Restore --> UserAction{ユーザーの操作}
 
     UserAction -->|編集| Edit[メッセージを編集]
     UserAction -->|そのまま再送信| Retry[再送信]
-    UserAction -->|設定を開く| Settings[設定画面へ遷移]
     UserAction -->|詳細を表示| Details[技術的な詳細を表示]
     UserAction -->|クリア| Clear[入力をクリア]
 
     Edit --> Retry
     Retry --> Send
-    Settings --> Configure[設定を変更]
-    Configure --> Back[チャットに戻る]
-    Back --> Retry
     Details --> UserAction
     Clear --> End([完了])
 ```
