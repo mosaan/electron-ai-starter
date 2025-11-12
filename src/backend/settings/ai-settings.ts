@@ -506,3 +506,130 @@ export async function deleteProviderConfiguration(configId: string): Promise<voi
   await saveAISettingsV3(settings)
   aiLogger.info(`Deleted provider configuration: ${configId}`)
 }
+
+/**
+ * Add a custom model to a provider configuration
+ */
+export async function addModelToConfiguration(
+  configId: string,
+  model: Omit<AIModelDefinition, 'source' | 'addedAt'>
+): Promise<void> {
+  const settings = await getAISettingsV3()
+
+  const config = settings.providerConfigs.find((c) => c.id === configId)
+  if (!config) {
+    throw new Error(`Provider configuration not found: ${configId}`)
+  }
+
+  // Check if model already exists
+  if (config.models.some((m) => m.id === model.id)) {
+    throw new Error(`Model already exists: ${model.id}`)
+  }
+
+  const newModel: AIModelDefinition = {
+    ...model,
+    source: 'custom',
+    addedAt: new Date().toISOString()
+  }
+
+  config.models.push(newModel)
+  config.updatedAt = new Date().toISOString()
+
+  await saveAISettingsV3(settings)
+  aiLogger.info(`Added custom model ${newModel.id} to configuration ${configId}`)
+}
+
+/**
+ * Update a model in a provider configuration
+ */
+export async function updateModelInConfiguration(
+  configId: string,
+  modelId: string,
+  updates: Partial<Omit<AIModelDefinition, 'id' | 'source' | 'addedAt'>>
+): Promise<void> {
+  const settings = await getAISettingsV3()
+
+  const config = settings.providerConfigs.find((c) => c.id === configId)
+  if (!config) {
+    throw new Error(`Provider configuration not found: ${configId}`)
+  }
+
+  const modelIndex = config.models.findIndex((m) => m.id === modelId)
+  if (modelIndex === -1) {
+    throw new Error(`Model not found: ${modelId}`)
+  }
+
+  const model = config.models[modelIndex]
+
+  // Apply updates
+  config.models[modelIndex] = {
+    ...model,
+    ...updates,
+    id: model.id, // Preserve ID
+    source: model.source, // Preserve source
+    addedAt: model.addedAt // Preserve added time
+  }
+
+  config.updatedAt = new Date().toISOString()
+
+  await saveAISettingsV3(settings)
+  aiLogger.info(`Updated model ${modelId} in configuration ${configId}`)
+}
+
+/**
+ * Delete a model from a provider configuration
+ */
+export async function deleteModelFromConfiguration(
+  configId: string,
+  modelId: string
+): Promise<void> {
+  const settings = await getAISettingsV3()
+
+  const config = settings.providerConfigs.find((c) => c.id === configId)
+  if (!config) {
+    throw new Error(`Provider configuration not found: ${configId}`)
+  }
+
+  const modelIndex = config.models.findIndex((m) => m.id === modelId)
+  if (modelIndex === -1) {
+    throw new Error(`Model not found: ${modelId}`)
+  }
+
+  config.models.splice(modelIndex, 1)
+  config.updatedAt = new Date().toISOString()
+
+  // Clear default selection if it was the deleted model
+  if (
+    settings.defaultSelection?.providerConfigId === configId &&
+    settings.defaultSelection?.modelId === modelId
+  ) {
+    settings.defaultSelection = undefined
+  }
+
+  await saveAISettingsV3(settings)
+  aiLogger.info(`Deleted model ${modelId} from configuration ${configId}`)
+}
+
+/**
+ * Refresh models from API for a provider configuration
+ * NOTE: This function is a placeholder for Phase 2 implementation
+ * It will use the discoverModels() API to fetch models from provider
+ */
+export async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition[]> {
+  const settings = await getAISettingsV3()
+
+  const config = settings.providerConfigs.find((c) => c.id === configId)
+  if (!config) {
+    throw new Error(`Provider configuration not found: ${configId}`)
+  }
+
+  // TODO: Phase 2 - Implement actual API discovery
+  // const apiModelIds = await discoverModels(config.type, config.config.apiKey, config.config.baseURL)
+
+  // For now, preserve existing models and log a warning
+  aiLogger.warn(
+    `refreshModelsFromAPI called for ${configId}, but API discovery not yet implemented (Phase 2)`
+  )
+
+  return config.models
+}
