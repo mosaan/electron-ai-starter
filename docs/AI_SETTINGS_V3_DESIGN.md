@@ -1,5 +1,21 @@
 # AI Settings V3 Design Document
 
+## Implementation Status
+
+**Current Status**: Phase 3 Complete (60% overall progress)
+**Last Updated**: 2025-11-12
+
+| Phase | Status | Commits | Description |
+|-------|--------|---------|-------------|
+| Phase 1: Backend Schema & Migration | ✅ Complete | 6 commits | V3 interfaces, migration, CRUD, unit tests |
+| Phase 2: Model Discovery | ✅ Complete | 1 commit | API discovery for OpenAI/Azure, hardcoded for Anthropic/Google |
+| Phase 3: Settings UI Redesign | ✅ Complete | 3 commits | Provider list, edit dialog, model management UI |
+| Phase 4: Chat UI Model Selection | ⏳ Not Started | - | Dynamic model selector, localStorage persistence |
+| Phase 5: Testing & Migration | ⏳ Not Started | - | End-to-end testing, documentation |
+
+**Total Commits**: 11 (including 1 test commit)
+**Test Coverage**: 14 unit tests (V2→V3 migration, CRUD operations, model management)
+
 ## Overview
 
 This document describes the redesigned AI settings architecture (v3) that addresses limitations in the current v2 implementation and supports more flexible provider and model management.
@@ -410,31 +426,82 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 
 ## Implementation Phases
 
-### Phase 1: Backend Schema & Migration
-- Define v3 interfaces in `src/common/types.ts`
-- Implement v2 → v3 migration in `src/backend/settings/ai-settings.ts`
-- Add v3 CRUD operations for provider configs
-- Add model management APIs
+### Phase 1: Backend Schema & Migration ✅ COMPLETED
+**Status**: Implemented and tested (6 commits: 3eb447d, 8b18ec2, 91f8e7e, d8c91dc, d4251dd, b007caf)
 
-### Phase 2: Model Discovery
-- Implement `discoverModels()` for each provider type
-- Add API client code for OpenAI model listing
-- Add refresh logic with error handling
-- Handle API unavailability gracefully (fall back to custom models)
+**Completed Tasks**:
+- ✅ Define v3 interfaces in `src/common/types.ts` (AISettingsV3, AIProviderConfiguration, AIModelDefinition, AIModelSelection)
+- ✅ Implement v2 → v3 migration in `src/backend/settings/ai-settings.ts` with automatic fallback chain (V3→V2→V1)
+- ✅ Add v3 CRUD operations for provider configs (create, read, update, delete with UUID/timestamp auto-generation)
+- ✅ Add model management APIs (add, update, delete models; refreshModelsFromAPI placeholder)
+- ✅ Update Handler layer to expose all V3 APIs
+- ✅ Update preload bridge to make V3 APIs accessible from renderer
+- ✅ Unit tests added (14 test cases covering migration, CRUD, model management)
 
-### Phase 3: Settings UI Redesign
-- Replace tabbed interface with configuration list
-- Create provider config edit dialog
-- Implement model management UI (refresh, add custom, delete)
-- Add configuration enable/disable toggle
+**Key Features**:
+- Default selection cleanup on config/model deletion
+- Duplicate model ID validation
+- Auto-generated UUIDs and timestamps
+- Type-safe Result<T> pattern throughout
 
-### Phase 4: Chat UI Model Selection
+### Phase 2: Model Discovery ✅ COMPLETED
+**Status**: Implemented and tested (1 commit: 31aa2ec)
+
+**Completed Tasks**:
+- ✅ Implement `discoverModels()` for each provider type:
+  - OpenAI: Fetch from `/v1/models` endpoint with proxy/certificate support
+  - Anthropic: Use hardcoded FACTORY list (no API available)
+  - Google: Use hardcoded FACTORY list (no simple API)
+  - Azure: Fetch from `/v1/models` with `api-key` header
+- ✅ Add API client code using `createCustomFetch()` for OpenAI/Azure model listing
+- ✅ Add refresh logic with error handling and graceful degradation
+- ✅ Handle API unavailability gracefully (return empty array, preserve existing models)
+- ✅ Implement model refresh behavior: replace ALL API-sourced models, preserve custom models
+- ✅ Update `refreshModelsFromAPI()` with complete implementation
+
+**Key Features**:
+- Deprecated models naturally disappear (not in new API response)
+- Custom models unaffected by refresh
+- `modelLastRefreshed` timestamp tracking
+- Comprehensive logging for debugging
+
+### Phase 3: Settings UI Redesign ✅ COMPLETED
+**Status**: Implemented and integrated (3 commits: c8547dc, 8c28421, aed73a2)
+
+**Completed Tasks**:
+- ✅ Replace tabbed interface with configuration list (AISettingsV3Component)
+- ✅ Create provider config edit dialog (ProviderConfigDialog) with full CRUD
+- ✅ Implement model management UI:
+  - Refresh models from API with visual feedback (success/error states)
+  - Add custom models with ID and display name
+  - Delete custom models (API models protected)
+  - Model list with source indicator (API vs Custom)
+- ✅ Add configuration enable/disable toggle per config
+- ✅ Integrate V3 UI into Settings page replacing V2
+
+**Components Created**:
+1. `AISettingsV3.tsx` (199 lines): Provider configuration list with cards
+2. `ProviderConfigDialog.tsx` (498 lines): Full edit/create dialog with model management
+3. Shadcn components added: Switch, Badge (Dialog and Select were already available)
+
+**Key Features**:
+- Multiple instances of same provider type support
+- Default selection badge display
+- Enable/disable prevents deletion
+- Real-time model count updates
+- Azure-specific fields (resource name, deployment URLs toggle)
+- Form validation (name and API key required)
+- Auto-reload after save
+
+### Phase 4: Chat UI Model Selection ⏳ NOT STARTED
+**Planned Tasks**:
 - Replace preset selector with grouped provider + model dropdown
 - Implement localStorage persistence for last selection
 - Update streaming API calls to use AIModelSelection
 - Use default AI SDK parameters (no customization in V3)
 
-### Phase 5: Testing & Migration
+### Phase 5: Testing & Migration ⏳ NOT STARTED
+**Planned Tasks**:
 - Test v2 → v3 migration with various scenarios
 - Test model API discovery with real endpoints
 - Test custom model addition/deletion
