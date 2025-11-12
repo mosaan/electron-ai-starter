@@ -167,11 +167,18 @@ export class Handler {
       apiKey = providerConfig.apiKey
     }
 
+    // Get provider configuration (for baseURL, etc.)
+    const providerConfig = settingsV2.providers[selectedProvider!]
+
     // Create config object
     const config: AIConfig = {
       provider: selectedProvider!,
       model: selectedModel!,
-      apiKey: apiKey!
+      apiKey: apiKey!,
+      baseURL: providerConfig?.baseURL,
+      // Azure-specific fields
+      resourceName: (providerConfig as AzureProviderConfig)?.resourceName,
+      useDeploymentBasedUrls: (providerConfig as AzureProviderConfig)?.useDeploymentBasedUrls
     }
 
     logger.info(`Streaming with ${config.provider} - ${config.model}`)

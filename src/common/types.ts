@@ -9,6 +9,9 @@ export interface AIConfig {
   provider: AIProvider
   model: string
   apiKey: string
+  baseURL?: string // Custom endpoint (e.g., for OpenAI-compatible APIs)
+  resourceName?: string // Azure-specific: resource name
+  useDeploymentBasedUrls?: boolean // Azure-specific: use deployment-based URLs
 }
 
 // Legacy v1 settings (kept for backward compatibility)
