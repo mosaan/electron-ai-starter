@@ -414,3 +414,95 @@ export async function saveAISettingsV3(settings: AISettingsV3): Promise<void> {
   aiLogger.info('Saving AI settings v3')
   await setSetting('ai_v3', settings)
 }
+
+/**
+ * Get all provider configurations
+ */
+export async function getProviderConfigurations(): Promise<AIProviderConfiguration[]> {
+  const settings = await getAISettingsV3()
+  return settings.providerConfigs
+}
+
+/**
+ * Get a specific provider configuration by ID
+ */
+export async function getProviderConfiguration(
+  configId: string
+): Promise<AIProviderConfiguration | undefined> {
+  const settings = await getAISettingsV3()
+  return settings.providerConfigs.find((c) => c.id === configId)
+}
+
+/**
+ * Create a new provider configuration
+ */
+export async function createProviderConfiguration(
+  config: Omit<AIProviderConfiguration, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<string> {
+  const settings = await getAISettingsV3()
+
+  const now = new Date().toISOString()
+  const newConfig: AIProviderConfiguration = {
+    ...config,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now
+  }
+
+  settings.providerConfigs.push(newConfig)
+  await saveAISettingsV3(settings)
+
+  aiLogger.info(`Created provider configuration: ${newConfig.name} (${newConfig.id})`)
+  return newConfig.id
+}
+
+/**
+ * Update an existing provider configuration
+ */
+export async function updateProviderConfiguration(
+  configId: string,
+  updates: Partial<Omit<AIProviderConfiguration, 'id' | 'createdAt'>>
+): Promise<void> {
+  const settings = await getAISettingsV3()
+
+  const configIndex = settings.providerConfigs.findIndex((c) => c.id === configId)
+  if (configIndex === -1) {
+    throw new Error(`Provider configuration not found: ${configId}`)
+  }
+
+  const config = settings.providerConfigs[configIndex]
+
+  // Apply updates
+  settings.providerConfigs[configIndex] = {
+    ...config,
+    ...updates,
+    id: config.id, // Preserve ID
+    createdAt: config.createdAt, // Preserve creation time
+    updatedAt: new Date().toISOString() // Update modification time
+  }
+
+  await saveAISettingsV3(settings)
+  aiLogger.info(`Updated provider configuration: ${configId}`)
+}
+
+/**
+ * Delete a provider configuration
+ */
+export async function deleteProviderConfiguration(configId: string): Promise<void> {
+  const settings = await getAISettingsV3()
+
+  const configIndex = settings.providerConfigs.findIndex((c) => c.id === configId)
+  if (configIndex === -1) {
+    throw new Error(`Provider configuration not found: ${configId}`)
+  }
+
+  settings.providerConfigs.splice(configIndex, 1)
+
+  // Clear default selection if it was the deleted config
+  if (settings.defaultSelection?.providerConfigId === configId) {
+    settings.defaultSelection = undefined
+  }
+
+  await saveAISettingsV3(settings)
+  aiLogger.info(`Deleted provider configuration: ${configId}`)
+}
