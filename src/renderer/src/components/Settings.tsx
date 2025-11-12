@@ -197,31 +197,9 @@ export function Settings({ onBack }: SettingsProps): React.JSX.Element {
         </div>
 
         <div className="space-y-6">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>File Locations</CardTitle>
-              <CardDescription>
-                View and access the folders where your application data and logs are stored.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <PathDisplay
-                  title="Database Location"
-                  description="Location where application data is stored"
-                  path={databasePath}
-                />
-                <PathDisplay
-                  title="Log Files Location"
-                  description="Location where application log files are stored"
-                  path={logPath}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <AISettingsV2Component className="shadow-sm" />
 
           <MCPSettings className="shadow-sm" />
-          <AISettingsV2Component className="shadow-sm" />
 
           <ProxySettings className="shadow-sm" />
 
@@ -284,6 +262,29 @@ export function Settings({ onBack }: SettingsProps): React.JSX.Element {
                   {testMessage}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>File Locations</CardTitle>
+              <CardDescription>
+                View and access the folders where your application data and logs are stored.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <PathDisplay
+                  title="Database Location"
+                  description="Location where application data is stored"
+                  path={databasePath}
+                />
+                <PathDisplay
+                  title="Log Files Location"
+                  description="Location where application log files are stored"
+                  path={logPath}
+                />
+              </div>
             </CardContent>
           </Card>
 
