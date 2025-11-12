@@ -80,7 +80,13 @@ export function AISettings({ className = '' }: AISettingsProps): React.JSX.Eleme
       if (provider === 'azure' && 'resourceName' in config) {
         const azureConfig = config as AzureProviderConfig
         setAzureResourceName(azureConfig.resourceName || '')
-        setAzureUseDeploymentUrls(azureConfig.useDeploymentBasedUrls || false)
+        // Use ?? instead of || to properly handle boolean false
+        setAzureUseDeploymentUrls(azureConfig.useDeploymentBasedUrls ?? false)
+        logger.debug('Loaded Azure config:', {
+          resourceName: azureConfig.resourceName,
+          useDeploymentBasedUrls: azureConfig.useDeploymentBasedUrls,
+          baseURL: azureConfig.baseURL
+        })
       } else {
         setAzureResourceName('')
         setAzureUseDeploymentUrls(false)
@@ -153,6 +159,11 @@ export function AISettings({ className = '' }: AISettingsProps): React.JSX.Eleme
           resourceName: azureResourceName || undefined,
           useDeploymentBasedUrls: azureUseDeploymentUrls
         } as AzureProviderConfig
+        logger.debug('Saving Azure config:', {
+          resourceName: azureResourceName,
+          useDeploymentBasedUrls: azureUseDeploymentUrls,
+          baseURL: baseURL
+        })
       } else {
         config = {
           apiKey,

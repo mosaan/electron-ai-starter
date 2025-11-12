@@ -90,6 +90,15 @@ export async function getAISettingsV2(): Promise<AISettingsV2> {
     const v2Settings = await getSetting<AISettingsV2>('ai_v2')
     if (v2Settings && v2Settings.version === 2) {
       aiLogger.debug('Loaded AI settings v2')
+      // Log Azure config if it exists
+      if (v2Settings.providers.azure) {
+        aiLogger.debug('Azure config from DB:', {
+          resourceName: v2Settings.providers.azure.resourceName,
+          useDeploymentBasedUrls: (v2Settings.providers.azure as AzureProviderConfig)
+            .useDeploymentBasedUrls,
+          baseURL: v2Settings.providers.azure.baseURL
+        })
+      }
       return v2Settings
     }
   } catch (error) {
@@ -224,6 +233,16 @@ export async function updateProviderConfig(
 ): Promise<void> {
   const settings = await getAISettingsV2()
   settings.providers[provider] = config
+
+  // Log Azure-specific config for debugging
+  if (provider === 'azure') {
+    aiLogger.debug('Updating Azure provider config:', {
+      resourceName: (config as AzureProviderConfig).resourceName,
+      useDeploymentBasedUrls: (config as AzureProviderConfig).useDeploymentBasedUrls,
+      baseURL: config.baseURL
+    })
+  }
+
   await saveAISettingsV2(settings)
   aiLogger.info(`Updated ${provider} provider configuration`)
 }
