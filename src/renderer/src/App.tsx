@@ -56,10 +56,6 @@ function App() {
     setCurrentPage('chat')
   }
 
-  const handleBackToChat = (): void => {
-    setCurrentPage('chat')
-  }
-
   // Show loading state while checking settings
   if (!backendConnected || isCheckingSettings) {
     return (
@@ -77,11 +73,11 @@ function App() {
   }
 
   if (currentPage === 'settings') {
-    return <Settings onBack={handleBackToChat} />
+    return <Settings onBack={handleChatClick} />
   }
 
   if (currentPage === 'chat') {
-    return <ChatPage onBack={handleBackToChat} />
+    return <ChatPage onSettings={handleSettingsClick} />
   }
 
   return (
