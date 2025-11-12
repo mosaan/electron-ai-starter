@@ -112,7 +112,11 @@ export function AISettings({ className = '' }: AISettingsProps): React.JSX.Eleme
       const config: AIConfig = {
         provider: activeProvider,
         model: testModel,
-        apiKey: apiKey
+        apiKey: apiKey,
+        baseURL: baseURL || undefined,
+        // Azure-specific fields
+        resourceName: activeProvider === 'azure' ? (azureResourceName || undefined) : undefined,
+        useDeploymentBasedUrls: activeProvider === 'azure' ? azureUseDeploymentUrls : undefined
       }
 
       const result = await window.backend.testAIProviderConnection(config)
