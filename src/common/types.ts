@@ -72,6 +72,68 @@ export interface AIModelPreset {
   createdAt: string // ISO 8601
 }
 
+// v3 Settings with multiple provider configurations
+export interface AISettingsV3 {
+  version: 3
+
+  // Last used provider config + model combination
+  defaultSelection?: {
+    providerConfigId: string // References AIProviderConfiguration.id
+    modelId: string // References AIModelDefinition.id
+  }
+
+  // List of all provider configurations
+  providerConfigs: AIProviderConfiguration[]
+}
+
+/**
+ * Provider Configuration - A specific instance of a provider setup
+ * Example: "OpenAI Official", "LocalLM Server", "Azure Production"
+ */
+export interface AIProviderConfiguration {
+  id: string // UUID - unique identifier
+  name: string // User-friendly name (e.g., "OpenAI Official", "LocalLM")
+  type: AIProvider // Provider type: 'openai' | 'anthropic' | 'google' | 'azure'
+
+  // Connection settings
+  config: AIProviderConfig | AzureProviderConfig
+
+  // Model management
+  models: AIModelDefinition[] // Available models for this configuration
+  modelRefreshEnabled: boolean // Whether to auto-refresh models from API
+  modelLastRefreshed?: string // ISO 8601 timestamp of last API fetch
+
+  // Metadata
+  enabled: boolean // Whether this config is active
+  createdAt: string // ISO 8601
+  updatedAt: string // ISO 8601
+}
+
+/**
+ * Model Definition - Represents a specific model within a provider config
+ */
+export interface AIModelDefinition {
+  id: string // Model ID used in API calls (e.g., "gpt-4o", "gemini-2.5-flash")
+  displayName?: string // Optional custom display name
+  source: 'api' | 'custom' // How this model was added
+
+  // Availability tracking (for API-sourced models)
+  isAvailable?: boolean // Last known availability status
+  lastChecked?: string // ISO 8601 timestamp of last availability check
+
+  // Metadata
+  addedAt: string // ISO 8601 - when this model was added
+  description?: string // Optional description
+}
+
+/**
+ * Runtime model selection (used in chat interface)
+ */
+export interface AIModelSelection {
+  providerConfigId: string // Which provider config to use
+  modelId: string // Which model from that config
+}
+
 export class TimeoutError extends Error {
   limitMs: number
 
