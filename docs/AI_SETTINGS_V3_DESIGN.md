@@ -506,30 +506,24 @@ async function refreshModelsFromAPI(configId: string): Promise<AIModelDefinition
 - Parameters use AI SDK defaults (temperature, maxTokens, etc.)
 - Future enhancement: Parameter presets as separate feature (see Future Enhancements)
 
-## Open Questions
+### 6. Configuration Templates
+**Decision**: Not supported (not planned for future)
+**Rationale**:
+- Manual configuration provides full flexibility
+- Templates would require maintenance as servers/defaults change
+- Users can easily configure base URLs manually (single field)
+- Focus development effort on core functionality
 
-### Configuration Templates
+## Design Finalized
 
-**Question**: Should we provide pre-configured templates for popular OpenAI-compatible servers?
+All design decisions have been resolved. The V3 architecture is ready for implementation.
 
-**Context**: Popular local/compatible servers include:
-- **Ollama** (http://localhost:11434)
-- **LM Studio** (http://localhost:1234)
-- **LocalAI** (various ports)
-- **Text Generation WebUI** (http://localhost:5000)
-
-**Possible Approach**:
-- Add "Create from Template" button in provider config list
-- Show template selection dialog with popular server presets
-- Template includes: name, base URL, provider type (usually 'openai')
-- User still needs to add API key and custom models
-
-**Question for User**:
-- Would this feature be useful, or is manual configuration sufficient?
-- Should templates be hardcoded or user-configurable?
-- What specific servers should be included in default templates?
-
-**Current Decision**: Pending user feedback
+**Key Design Principles**:
+1. Multiple provider configurations per type with user-friendly names
+2. API-based model discovery with custom model support
+3. Dynamic model selection across all enabled configurations
+4. Simple, focused scope (no templates, no parameter presets in V3)
+5. Smooth migration from V2 with minimal user disruption
 
 ## References
 
