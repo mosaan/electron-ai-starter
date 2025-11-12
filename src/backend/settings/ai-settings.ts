@@ -398,18 +398,16 @@ async function discoverModels(
 
       case 'anthropic': {
         // Anthropic doesn't have a model listing API
-        // Return hardcoded list from FACTORY
-        const models = FACTORY.anthropic.available
-        aiLogger.info(`Using hardcoded Anthropic models (${models.length} models)`)
-        return models
+        // Return empty array to keep existing models unchanged
+        aiLogger.info('Anthropic does not support API-based model discovery')
+        return []
       }
 
       case 'google': {
         // Google Gemini doesn't have a simple model listing API
-        // Return hardcoded list from FACTORY
-        const models = FACTORY.google.available
-        aiLogger.info(`Using hardcoded Google models (${models.length} models)`)
-        return models
+        // Return empty array to keep existing models unchanged
+        aiLogger.info('Google does not support API-based model discovery')
+        return []
       }
 
       case 'azure': {
