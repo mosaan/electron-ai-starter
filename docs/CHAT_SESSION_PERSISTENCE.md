@@ -14,7 +14,7 @@ You will see this working by starting the app, typing several messages to have a
 
 - [x] (2025-11-13) Milestone 1: Define database schema and generate migration - COMPLETED
 - [x] (2025-11-13) Milestone 2: Implement ChatSessionStore service class with database operations - COMPLETED (95%, tests need fixing)
-- [ ] (Start date TBD) Milestone 3: Add IPC handlers to expose database operations to UI
+- [x] (2025-11-13) Milestone 3: Add IPC handlers to expose database operations to UI - COMPLETED
 - [ ] (Start date TBD) Milestone 4: Build session list UI and session switching logic
 - [ ] (Start date TBD) Milestone 5: Integrate message persistence into streaming workflow
 
@@ -84,6 +84,29 @@ You will see this working by starting the app, typing several messages to have a
 **Next Steps:**
 - Consider using file-based test databases or Drizzle's migrate() for test setup to resolve test failures
 - Alternatively, proceed to Milestone 3 (IPC layer) where integration testing will validate the full stack
+
+### Milestone 3: IPC Layer Integration (Completed 2025-11-13)
+
+**Achieved:**
+- Implemented all 11 chat session handlers in `src/backend/handler.ts` (createChatSession, getChatSession, listChatSessions, updateChatSession, deleteChatSession, searchChatSessions, addChatMessage, recordToolInvocationResult, deleteMessagesAfter, getLastSessionId, setLastSessionId)
+- Exposed all APIs via preload `src/preload/server.ts` backendAPI for renderer access
+- Added type definitions to `src/common/types.ts` RendererBackendAPI interface
+- Fixed Drizzle index definition syntax (switched from object notation to array with index().on() functions)
+- Regenerated migration file with correct index syntax (0004_lazy_mach_iv.sql)
+- All APIs now accessible from renderer as `window.backend.createChatSession()` etc.
+
+**Challenges:**
+- Drizzle ORM index syntax changed between versions - old object-based notation no longer supported
+- Required regenerating migration file after fixing schema
+
+**Lessons Learned:**
+- Drizzle's latest version requires `index('name').on(column1, column2)` format instead of object literals
+- Type checking catches schema issues early before runtime
+- IPC layer follows clear pattern: Handler method → preload API → type definition
+
+**Next Steps:**
+- Proceed to Milestone 4 (UI Components) to build session list and management interface
+- Consider adding DevTools testing to verify IPC handlers respond correctly
 
 ## Context and Orientation
 
