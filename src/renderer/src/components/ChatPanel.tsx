@@ -146,6 +146,7 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
             <div className="flex-1 overflow-hidden">
               {modelSelection ? (
                 <AIRuntimeProvider
+                  key={currentSession?.id} // Force remount when session changes
                   modelSelection={modelSelection}
                   chatSessionId={currentSession?.id}
                 >
