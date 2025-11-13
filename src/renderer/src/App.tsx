@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Settings as SettingsIcon, MessageCircle } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { Settings } from '@renderer/components/Settings'
-import { ChatPage } from '@renderer/components/ChatPage'
+import { ChatPageWithSessions } from '@renderer/components/ChatPageWithSessions'
 import { UpdateNotification } from '@renderer/components/UpdateNotification'
 import { logger } from '@renderer/lib/logger'
 import { isOk } from '@common/result'
@@ -127,7 +127,7 @@ function App() {
   }
 
   if (currentPage === 'chat') {
-    return <ChatPage onSettings={handleSettingsClick} />
+    return <ChatPageWithSessions onSettings={handleSettingsClick} />
   }
 
   return (
