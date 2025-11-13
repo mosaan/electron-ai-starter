@@ -45,12 +45,25 @@ import {
   deleteModelFromConfiguration,
   refreshModelsFromAPI
 } from './settings/ai-settings'
+import { ChatSessionStore } from './session/ChatSessionStore'
+import type {
+  CreateSessionRequest,
+  AddMessageRequest,
+  RecordToolInvocationResultRequest,
+  ListSessionsOptions,
+  SessionUpdates,
+  ChatSessionRow,
+  ChatSessionWithMessages
+} from '@common/chat-types'
+import { db } from './db'
 
 export class Handler {
   private _rendererConnection: Connection
+  private _sessionStore: ChatSessionStore
 
   constructor({ rendererConnetion }: { rendererConnetion: Connection }) {
     this._rendererConnection = rendererConnetion
+    this._sessionStore = new ChatSessionStore(db)
   }
 
   async ping(): Promise<Result<string>> {
@@ -379,5 +392,63 @@ export class Handler {
   async refreshModelsFromAPI(configId: string): Promise<Result<AIModelDefinition[]>> {
     const models = await refreshModelsFromAPI(configId)
     return ok(models)
+  }
+
+  // Chat Session Management handlers
+  async createChatSession(request: CreateSessionRequest): Promise<Result<string>> {
+    const sessionId = await this._sessionStore.createSession(request)
+    return ok(sessionId)
+  }
+
+  async getChatSession(sessionId: string): Promise<Result<ChatSessionWithMessages | null>> {
+    const session = await this._sessionStore.getSession(sessionId)
+    return ok(session)
+  }
+
+  async listChatSessions(options?: ListSessionsOptions): Promise<Result<ChatSessionRow[]>> {
+    const sessions = await this._sessionStore.listSessions(options)
+    return ok(sessions)
+  }
+
+  async updateChatSession(sessionId: string, updates: SessionUpdates): Promise<Result<void>> {
+    await this._sessionStore.updateSession(sessionId, updates)
+    return ok(undefined)
+  }
+
+  async deleteChatSession(sessionId: string): Promise<Result<void>> {
+    await this._sessionStore.deleteSession(sessionId)
+    return ok(undefined)
+  }
+
+  async searchChatSessions(query: string): Promise<Result<ChatSessionRow[]>> {
+    const sessions = await this._sessionStore.searchSessions(query)
+    return ok(sessions)
+  }
+
+  async addChatMessage(request: AddMessageRequest): Promise<Result<string>> {
+    const messageId = await this._sessionStore.addMessage(request)
+    return ok(messageId)
+  }
+
+  async recordToolInvocationResult(
+    request: RecordToolInvocationResultRequest
+  ): Promise<Result<void>> {
+    await this._sessionStore.recordToolInvocationResult(request)
+    return ok(undefined)
+  }
+
+  async deleteMessagesAfter(sessionId: string, messageId: string): Promise<Result<void>> {
+    await this._sessionStore.deleteMessagesAfter(sessionId, messageId)
+    return ok(undefined)
+  }
+
+  async getLastSessionId(): Promise<Result<string | null>> {
+    const sessionId = await this._sessionStore.getLastSessionId()
+    return ok(sessionId)
+  }
+
+  async setLastSessionId(sessionId: string): Promise<Result<void>> {
+    await this._sessionStore.setLastSessionId(sessionId)
+    return ok(undefined)
   }
 }

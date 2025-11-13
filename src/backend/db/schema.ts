@@ -1,4 +1,4 @@
-import { text, sqliteTable, integer } from 'drizzle-orm/sqlite-core'
+import { text, sqliteTable, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm'
 
 // Settings table for app configuration (key-value pairs with JSON values)
@@ -73,16 +73,10 @@ export const chatMessages = sqliteTable(
     }),
     deletedAt: integer('deleted_at')
   },
-  (table) => ({
-    sessionSequenceIdx: {
-      name: 'idx_chat_messages_session_sequence',
-      columns: [table.sessionId, table.sequence]
-    },
-    sessionCreatedIdx: {
-      name: 'idx_chat_messages_session_created',
-      columns: [table.sessionId, table.createdAt]
-    }
-  })
+  (table) => [
+    index('idx_chat_messages_session_sequence').on(table.sessionId, table.sequence),
+    index('idx_chat_messages_session_created').on(table.sessionId, table.createdAt)
+  ]
 )
 
 export type SelectChatMessage = InferSelectModel<typeof chatMessages>
@@ -117,21 +111,11 @@ export const messageParts = sqliteTable(
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull()
   },
-  (table) => ({
-    messageSequenceIdx: {
-      name: 'idx_message_parts_message_sequence',
-      columns: [table.messageId, table.sequence]
-    },
-    sessionKindIdx: {
-      name: 'idx_message_parts_session_kind',
-      columns: [table.sessionId, table.kind]
-    },
-    toolCallIdIdx: {
-      name: 'idx_message_parts_tool_call_id',
-      columns: [table.toolCallId],
-      unique: true
-    }
-  })
+  (table) => [
+    index('idx_message_parts_message_sequence').on(table.messageId, table.sequence),
+    index('idx_message_parts_session_kind').on(table.sessionId, table.kind),
+    uniqueIndex('idx_message_parts_tool_call_id').on(table.toolCallId)
+  ]
 )
 
 export type SelectMessagePart = InferSelectModel<typeof messageParts>
@@ -167,20 +151,11 @@ export const toolInvocations = sqliteTable(
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull()
   },
-  (table) => ({
-    toolNameIdx: {
-      name: 'idx_tool_invocations_tool_name',
-      columns: [table.toolName]
-    },
-    statusCompletedIdx: {
-      name: 'idx_tool_invocations_status_completed',
-      columns: [table.status, table.completedAt]
-    },
-    sessionCreatedIdx: {
-      name: 'idx_tool_invocations_session_created',
-      columns: [table.sessionId, table.createdAt]
-    }
-  })
+  (table) => [
+    index('idx_tool_invocations_tool_name').on(table.toolName),
+    index('idx_tool_invocations_status_completed').on(table.status, table.completedAt),
+    index('idx_tool_invocations_session_created').on(table.sessionId, table.createdAt)
+  ]
 )
 
 export type SelectToolInvocation = InferSelectModel<typeof toolInvocations>
@@ -203,12 +178,9 @@ export const sessionSnapshots = sqliteTable(
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull()
   },
-  (table) => ({
-    sessionKindIdx: {
-      name: 'idx_session_snapshots_kind',
-      columns: [table.sessionId, table.kind]
-    }
-  })
+  (table) => [
+    index('idx_session_snapshots_kind').on(table.sessionId, table.kind)
+  ]
 )
 
 export type SelectSessionSnapshot = InferSelectModel<typeof sessionSnapshots>

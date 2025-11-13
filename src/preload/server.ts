@@ -62,6 +62,18 @@ export class Server {
     testCertificateConnection: (...args) => this._invoke('testCertificateConnection', ...args),
     testCombinedConnection: (...args) => this._invoke('testCombinedConnection', ...args),
     testFullConnection: (...args) => this._invoke('testFullConnection', ...args),
+    // Chat Session Management
+    createChatSession: (...args) => this._invoke('createChatSession', ...args),
+    getChatSession: (...args) => this._invoke('getChatSession', ...args),
+    listChatSessions: (...args) => this._invoke('listChatSessions', ...args),
+    updateChatSession: (...args) => this._invoke('updateChatSession', ...args),
+    deleteChatSession: (...args) => this._invoke('deleteChatSession', ...args),
+    searchChatSessions: (...args) => this._invoke('searchChatSessions', ...args),
+    addChatMessage: (...args) => this._invoke('addChatMessage', ...args),
+    recordToolInvocationResult: (...args) => this._invoke('recordToolInvocationResult', ...args),
+    deleteMessagesAfter: (...args) => this._invoke('deleteMessagesAfter', ...args),
+    getLastSessionId: (...args) => this._invoke('getLastSessionId', ...args),
+    setLastSessionId: (...args) => this._invoke('setLastSessionId', ...args),
     onEvent: (channel: string, callback: (appEvent: AppEvent) => void) => {
       this._backendConnection!.onEvent(channel, callback)
     },

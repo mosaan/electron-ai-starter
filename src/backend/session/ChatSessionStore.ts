@@ -30,10 +30,6 @@ export class ChatSessionStore {
     return new Date(timestamp).toISOString()
   }
 
-  private isoToUnix(isoString: string): number {
-    return new Date(isoString).getTime()
-  }
-
   // Create a new chat session
   async createSession(request: CreateSessionRequest): Promise<string> {
     const id = randomUUID()
