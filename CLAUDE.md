@@ -380,5 +380,5 @@ gh issue edit 10 --repo mosaan/electron-ai-starter --title "New title"
 ## Commit Guidelines
 
 - Keep commit messages concise and descriptive
-- Use `git add .` when committing changes
+- Think separation of changes into logical units, then commit each unit separately.
 - Do not include Claude-related messages in commits
