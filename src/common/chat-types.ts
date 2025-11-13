@@ -101,6 +101,7 @@ export interface ChatSessionWithMessages {
   pinnedAt?: string | null
   archivedAt?: string | null
   summary?: unknown
+  summaryUpdatedAt?: string | null
   color?: string | null
   metadata?: unknown
   messages: ChatMessageWithParts[]

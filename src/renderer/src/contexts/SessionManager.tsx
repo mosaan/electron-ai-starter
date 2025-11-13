@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { logger } from '@renderer/lib/logger'
 import { isOk } from '@common/result'
-import type { ChatSessionRow, CreateSessionRequest, SessionUpdates } from '@common/chat-types'
+import type { ChatSessionRow, ChatSessionWithMessages, CreateSessionRequest, SessionUpdates } from '@common/chat-types'
 import type { AIModelSelection } from '@common/types'
 
 interface SessionManagerContextValue {
   // Current session state
   currentSessionId: string | null
-  currentSession: ChatSessionRow | null
+  currentSession: ChatSessionWithMessages | null
   isLoading: boolean
 
   // Session list
@@ -33,7 +33,7 @@ interface SessionManagerProviderProps {
 
 export function SessionManagerProvider({ children }: SessionManagerProviderProps): React.JSX.Element {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-  const [currentSession, setCurrentSession] = useState<ChatSessionRow | null>(null)
+  const [currentSession, setCurrentSession] = useState<ChatSessionWithMessages | null>(null)
   const [sessions, setSessions] = useState<ChatSessionRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [modelSelection, setModelSelection] = useState<AIModelSelection | null>(null)
