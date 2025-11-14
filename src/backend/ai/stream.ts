@@ -26,6 +26,7 @@ export async function streamSessionText(
   // Accumulate message parts for persistence
   const textChunks: string[] = []
   const toolCalls: Array<{ toolCallId: string; toolName: string; input: unknown }> = []
+  const toolResults: Array<{ toolCallId: string; toolName: string; output: unknown }> = []
 
   try {
     const model = await createModel(config)
@@ -110,6 +111,12 @@ export async function streamSessionText(
           break
 
         case 'tool-result':
+          // Accumulate tool result for persistence (will be saved after message is persisted)
+          toolResults.push({
+            toolCallId: chunk.toolCallId,
+            toolName: chunk.toolName,
+            output: chunk.output
+          })
           // Log tool result
           logger.info(`[MCP] Tool result received: ${chunk.toolName}`, {
             toolCallId: chunk.toolCallId,
@@ -125,20 +132,6 @@ export async function streamSessionText(
               output: chunk.output
             }
           })
-          // Save tool invocation result to database
-          if (chatSessionStore && session.chatSessionId) {
-            try {
-              const toolResultRequest: RecordToolInvocationResultRequest = {
-                toolCallId: chunk.toolCallId,
-                status: 'success',
-                output: chunk.output
-              }
-              await chatSessionStore.recordToolInvocationResult(toolResultRequest)
-              logger.info(`[DB] Tool result saved: ${chunk.toolName} (${chunk.toolCallId})`)
-            } catch (error) {
-              logger.error(`[DB] Failed to save tool result: ${chunk.toolName}`, error)
-            }
-          }
           break
 
         case 'finish':
@@ -192,6 +185,21 @@ export async function streamSessionText(
             }
             const messageId = await chatSessionStore.addMessage(messageRequest)
             logger.info(`[DB] Assistant message saved: ${messageId} (${parts.length} parts)`)
+
+            // Now that tool invocations are persisted, save their results
+            for (const toolResult of toolResults) {
+              try {
+                const toolResultRequest: RecordToolInvocationResultRequest = {
+                  toolCallId: toolResult.toolCallId,
+                  status: 'success',
+                  output: toolResult.output
+                }
+                await chatSessionStore.recordToolInvocationResult(toolResultRequest)
+                logger.info(`[DB] Tool result saved: ${toolResult.toolName} (${toolResult.toolCallId})`)
+              } catch (error) {
+                logger.error(`[DB] Failed to save tool result: ${toolResult.toolName}`, error)
+              }
+            }
           }
         } catch (error) {
           logger.error('[DB] Failed to save assistant message:', error)
