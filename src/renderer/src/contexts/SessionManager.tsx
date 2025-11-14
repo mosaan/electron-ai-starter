@@ -44,13 +44,25 @@ export function SessionManagerProvider({ children }: SessionManagerProviderProps
       const result = await window.backend.listChatSessions({ limit: 100 })
       if (isOk(result)) {
         setSessions(result.value)
+
+        // Update currentSession's messageCount if it's in the refreshed list
+        if (currentSessionId && currentSession) {
+          const updatedSession = result.value.find(s => s.id === currentSessionId)
+          if (updatedSession && updatedSession.messageCount !== currentSession.messageCount) {
+            setCurrentSession({
+              ...currentSession,
+              messageCount: updatedSession.messageCount,
+              updatedAt: new Date(updatedSession.updatedAt).toISOString()
+            })
+          }
+        }
       } else {
         logger.error('Failed to load sessions:', result.error)
       }
     } catch (error) {
       logger.error('Error loading sessions:', error)
     }
-  }, [])
+  }, [currentSessionId, currentSession])
 
   // Load current session details
   const loadCurrentSession = useCallback(async (sessionId: string) => {

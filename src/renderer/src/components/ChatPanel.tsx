@@ -14,7 +14,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
-  const { currentSession, modelSelection, setModelSelection } = useSessionManager()
+  const { currentSession, modelSelection, setModelSelection, refreshSessions } = useSessionManager()
   const [hasProviderConfigs, setHasProviderConfigs] = useState<boolean>(true)
   const [hasAvailableModels, setHasAvailableModels] = useState<boolean>(true)
 
@@ -150,6 +150,7 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
                   modelSelection={modelSelection}
                   chatSessionId={currentSession?.id}
                   initialMessages={currentSession?.messages}
+                  onMessageCompleted={refreshSessions}
                 >
                   <Thread />
                 </AIRuntimeProvider>

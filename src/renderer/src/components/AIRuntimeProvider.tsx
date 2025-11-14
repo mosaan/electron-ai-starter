@@ -13,13 +13,15 @@ interface AIRuntimeProviderProps {
   modelSelection: AIModelSelection | null
   chatSessionId?: string | null
   initialMessages?: ChatMessageWithParts[]
+  onMessageCompleted?: () => void | Promise<void>
 }
 
-export function AIRuntimeProvider({ children, modelSelection, chatSessionId, initialMessages }: AIRuntimeProviderProps): React.JSX.Element {
+export function AIRuntimeProvider({ children, modelSelection, chatSessionId, initialMessages, onMessageCompleted }: AIRuntimeProviderProps): React.JSX.Element {
   // Create adapter with modelSelection and chatSessionId closure
   const createAIModelAdapter = (
     currentSelection: AIModelSelection | null,
-    sessionId: string | null | undefined
+    sessionId: string | null | undefined,
+    messageCompletedCallback?: () => void | Promise<void>
   ): ChatModelAdapter => ({
     async *run({ messages, abortSignal }) {
       // Convert Assistant-ui messages to AIMessage format
@@ -112,10 +114,15 @@ export function AIRuntimeProvider({ children, modelSelection, chatSessionId, ini
       }
 
       logger.info('AI stream completed')
+
+      // Notify that message exchange is complete (both user and assistant messages saved)
+      if (messageCompletedCallback) {
+        await messageCompletedCallback()
+      }
     }
   })
 
-  const runtime = useLocalRuntime(createAIModelAdapter(modelSelection, chatSessionId))
+  const runtime = useLocalRuntime(createAIModelAdapter(modelSelection, chatSessionId, onMessageCompleted))
 
   // Import initial messages when session changes
   useEffect(() => {
