@@ -1,13 +1,21 @@
 import { drizzle } from 'drizzle-orm/libsql'
 import { createClient } from '@libsql/client'
 import { beforeEach } from 'vitest'
+import { randomUUID } from 'crypto'
+import fs from 'fs'
+import path from 'path'
 
 /**
  * Creates a fresh in-memory test database with schema setup
  */
 export async function createTestDatabase(): Promise<ReturnType<typeof drizzle>> {
-  // Create in-memory libSQL database
-  const client = createClient({ url: ':memory:' })
+  // Use file-based database for better transaction support
+  const tmpDir = '/tmp'
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true })
+  }
+  const dbPath = path.join(tmpDir, `test-db-${randomUUID()}.db`)
+  const client = createClient({ url: `file:${dbPath}` })
 
   // Create tables directly using the libSQL client
   await client.execute(`
@@ -42,8 +50,13 @@ export async function createTestDatabase(): Promise<ReturnType<typeof drizzle>> 
  * Creates a fresh in-memory test database with chat session tables
  */
 export async function createTestDatabaseWithChatTables(): Promise<ReturnType<typeof drizzle>> {
-  // Create in-memory libSQL database
-  const client = createClient({ url: ':memory:' })
+  // Use file-based database for better transaction support
+  const tmpDir = '/tmp'
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true })
+  }
+  const dbPath = path.join(tmpDir, `test-chat-db-${randomUUID()}.db`)
+  const client = createClient({ url: `file:${dbPath}` })
 
   // Enable foreign keys
   await client.execute('PRAGMA foreign_keys = ON')

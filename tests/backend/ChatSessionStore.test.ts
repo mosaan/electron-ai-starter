@@ -308,10 +308,11 @@ describe('ChatSessionStore', () => {
         expect(result.messages[0].parts[0].content).toBe('Hello')
       }
 
-      // Check second message
+      // Check second message (should have both tool_invocation and tool_result parts)
       expect(result?.messages[1].role).toBe('assistant')
-      expect(result?.messages[1].parts).toHaveLength(1)
+      expect(result?.messages[1].parts).toHaveLength(2)
       expect(result?.messages[1].parts[0].kind).toBe('tool_invocation')
+      expect(result?.messages[1].parts[1].kind).toBe('tool_result')
     })
   })
 
