@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Settings as SettingsIcon, MessageCircle } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { Settings } from '@renderer/components/Settings'
-import { ChatPage } from '@renderer/components/ChatPage'
+import { ChatPageWithSessions } from '@renderer/components/ChatPageWithSessions'
 import { UpdateNotification } from '@renderer/components/UpdateNotification'
 import { logger } from '@renderer/lib/logger'
 import { isOk } from '@common/result'
@@ -56,6 +56,25 @@ function App() {
 
     connectToBackend()
   }, [])
+
+  // Set up backend exit event listener after connection is established
+  useEffect(() => {
+    if (!backendConnected) {
+      return
+    }
+
+    const handleBackendExit = () => {
+      logger.error('Backend process exited unexpectedly')
+      setBackendConnected(false)
+      setConnectionError('Backend process exited unexpectedly. This may be due to a database migration error or other initialization failure.')
+    }
+
+    window.backend.onEvent('backendExited', handleBackendExit)
+
+    return () => {
+      window.backend.offEvent('backendExited')
+    }
+  }, [backendConnected])
 
   const handleSettingsClick = (): void => {
     setCurrentPage('settings')
@@ -127,7 +146,7 @@ function App() {
   }
 
   if (currentPage === 'chat') {
-    return <ChatPage onSettings={handleSettingsClick} />
+    return <ChatPageWithSessions onSettings={handleSettingsClick} />
   }
 
   return (

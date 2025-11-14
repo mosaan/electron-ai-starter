@@ -193,6 +193,7 @@ export interface StreamAIOptions {
   provider?: AIProvider              // Override provider
   model?: string                     // Override model
   parameters?: Record<string, unknown>  // Override parameters
+  chatSessionId?: string             // Chat session ID for message persistence
 }
 
 export interface RendererBackendAPI {
@@ -245,6 +246,18 @@ export interface RendererBackendAPI {
     certSettings: CertificateSettings
   ) => Promise<Result<ConnectionTestResult>>
   testFullConnection: () => Promise<Result<ConnectionTestResult, string>>
+  // Chat Session Management
+  createChatSession: (request: import('./chat-types').CreateSessionRequest) => Promise<Result<string>>
+  getChatSession: (sessionId: string) => Promise<Result<import('./chat-types').ChatSessionWithMessages | null>>
+  listChatSessions: (options?: import('./chat-types').ListSessionsOptions) => Promise<Result<import('./chat-types').ChatSessionRow[]>>
+  updateChatSession: (sessionId: string, updates: import('./chat-types').SessionUpdates) => Promise<Result<void>>
+  deleteChatSession: (sessionId: string) => Promise<Result<void>>
+  searchChatSessions: (query: string) => Promise<Result<import('./chat-types').ChatSessionRow[]>>
+  addChatMessage: (request: import('./chat-types').AddMessageRequest) => Promise<Result<string>>
+  recordToolInvocationResult: (request: import('./chat-types').RecordToolInvocationResultRequest) => Promise<Result<void>>
+  deleteMessagesAfter: (sessionId: string, messageId: string) => Promise<Result<void>>
+  getLastSessionId: () => Promise<Result<string | null>>
+  setLastSessionId: (sessionId: string) => Promise<Result<void>>
 }
 
 export interface RendererMainAPI {

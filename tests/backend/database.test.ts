@@ -217,10 +217,11 @@ describe('Database Operations', () => {
       expect(columnNames).toEqual(['key', 'value'])
     })
 
-    it('should use memory journal mode for in-memory database', async () => {
+    it('should use delete journal mode for file-based test database', async () => {
       const db = getTestDatabase()
       const journalMode = (await db.get(`PRAGMA journal_mode`)) as { journal_mode: string }
-      expect(journalMode.journal_mode).toBe('memory')
+      // File-based databases use 'delete' mode by default
+      expect(journalMode.journal_mode).toBe('delete')
     })
   })
 })
