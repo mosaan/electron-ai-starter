@@ -60,6 +60,11 @@ export class Server {
       return { action: 'deny' }
     })
 
+    this._mainWindow.webContents.on('will-navigate', (event, url) => {
+      event.preventDefault()
+      shell.openExternal(url)
+    })
+
     // HMR for renderer base on electron-vite cli.
     // Load the remote URL for development or the local html file for production.
     if (process.env.NODE_ENV === 'development' && process.env['ELECTRON_RENDERER_URL']) {
