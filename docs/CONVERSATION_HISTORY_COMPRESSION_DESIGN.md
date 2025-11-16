@@ -752,17 +752,19 @@ class ChatSessionStore {
     sessionId: string;
     kind: 'title' | 'summary' | 'memory';
     contentJson: string;
-    messageCutoffId?: string;
-    tokenCount?: number;
+    messageCutoffId: string;
+    tokenCount: number;
   }): Promise<SessionSnapshot> {
+    const now = Date.now();
     const snapshot = {
       id: randomUUID(),
       sessionId: params.sessionId,
       kind: params.kind,
       contentJson: params.contentJson,
-      messageCutoffId: params.messageCutoffId ?? null,
-      tokenCount: params.tokenCount ?? null,
-      createdAt: new Date(),
+      messageCutoffId: params.messageCutoffId,
+      tokenCount: params.tokenCount,
+      createdAt: now,
+      updatedAt: now,
     };
 
     await db.insert(sessionSnapshots).values(snapshot);
