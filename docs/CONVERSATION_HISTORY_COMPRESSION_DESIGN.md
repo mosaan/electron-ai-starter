@@ -243,6 +243,14 @@ interface ModelContextConfig {
 class ModelConfigRegistry {
   private static configs: Map<string, ModelContextConfig> = new Map([
     // OpenAI models
+    ['openai:gpt-5', {
+      provider: 'openai',
+      model: 'gpt-5',
+      contextWindow: 400000,
+      maxOutputTokens: 128000,
+      defaultCompressionThreshold: 0.95,
+      recommendedRetentionTokens: 2000,
+    }],
     ['openai:gpt-4o', {
       provider: 'openai',
       model: 'gpt-4o',
@@ -267,24 +275,34 @@ class ModelConfigRegistry {
       defaultCompressionThreshold: 0.95,
       recommendedRetentionTokens: 1000,
     }],
-    ['openai:gpt-4', {
-      provider: 'openai',
-      model: 'gpt-4',
-      contextWindow: 8192,
-      maxOutputTokens: 4096,
+
+    // Anthropic models (4.5 generation)
+    ['anthropic:claude-sonnet-4-5-20250929', {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-5-20250929',
+      contextWindow: 200000, // 1M with beta header, but default to 200K
+      maxOutputTokens: 64000,
       defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 800,
+      recommendedRetentionTokens: 1500,
     }],
-    ['openai:gpt-3.5-turbo', {
-      provider: 'openai',
-      model: 'gpt-3.5-turbo',
-      contextWindow: 16384,
+    ['anthropic:claude-opus-4-1', {
+      provider: 'anthropic',
+      model: 'claude-opus-4-1',
+      contextWindow: 200000,
       maxOutputTokens: 4096,
       defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1000,
+      recommendedRetentionTokens: 1500,
+    }],
+    ['anthropic:claude-haiku-4-5', {
+      provider: 'anthropic',
+      model: 'claude-haiku-4-5',
+      contextWindow: 200000,
+      maxOutputTokens: 64000,
+      defaultCompressionThreshold: 0.95,
+      recommendedRetentionTokens: 1500,
     }],
 
-    // Anthropic models
+    // Legacy Anthropic models (3.x generation)
     ['anthropic:claude-3-5-sonnet-20241022', {
       provider: 'anthropic',
       model: 'claude-3-5-sonnet-20241022',
@@ -733,7 +751,7 @@ private selectSummarizationModel(provider: string): string {
   // Use cheaper models for summarization
   const summaryModels: Record<string, string> = {
     'openai': 'gpt-4o-mini',
-    'anthropic': 'claude-3-haiku-20240307',
+    'anthropic': 'claude-haiku-4-5',
     'google': 'gemini-2.5-flash',
     'azure': 'gpt-4o-mini',
   };

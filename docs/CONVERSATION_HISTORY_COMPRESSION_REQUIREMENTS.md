@@ -25,14 +25,16 @@ Based on codebase analysis:
 
 | Provider | Model | Context Window | Max Output | Tokenization Method |
 |----------|-------|----------------|------------|---------------------|
-| **OpenAI** | GPT-4o | 128K tokens | 16K tokens | tiktoken (o200k_base) |
+| **OpenAI** | GPT-5 | 400K tokens | 128K tokens | tiktoken (o200k_base) |
+| | GPT-4o | 128K tokens | 16K tokens | tiktoken (o200k_base) |
+| | GPT-4o-mini | 128K tokens | 16K tokens | tiktoken (o200k_base) |
 | | GPT-4 Turbo | 128K tokens | 4K tokens | tiktoken (cl100k_base) |
-| | GPT-4 | 32K tokens | 8K tokens | tiktoken (cl100k_base) |
-| | GPT-3.5-turbo | 16K tokens | 4K tokens | tiktoken (cl100k_base) |
-| **Anthropic** | Claude Sonnet 4.5 | 1M tokens (beta) | 64K tokens | Anthropic tokenizer (65K vocab, BPE) |
-| | Claude 3.5 Sonnet | 200K tokens | 8K tokens (beta) | Anthropic tokenizer |
-| | Claude 3 Opus | 200K tokens | 4K tokens | Anthropic tokenizer |
-| | Claude 3 Haiku | 200K tokens | 4K tokens | Anthropic tokenizer |
+| **Anthropic** | Claude Sonnet 4.5 | 200K tokens (1M beta) | 64K tokens | Anthropic tokenizer (65K vocab, BPE) |
+| | Claude Opus 4.1 | 200K tokens | 4K tokens | Anthropic tokenizer |
+| | Claude Haiku 4.5 | 200K tokens | 64K tokens | Anthropic tokenizer |
+| | Claude 3.5 Sonnet | 200K tokens | 8K tokens | Anthropic tokenizer (legacy) |
+| | Claude 3 Opus | 200K tokens | 4K tokens | Anthropic tokenizer (legacy) |
+| | Claude 3 Haiku | 200K tokens | 4K tokens | Anthropic tokenizer (legacy) |
 | **Google** | Gemini 2.5 Pro | 1M tokens | 64K tokens | Gemini countTokens API |
 | | Gemini 2.5 Flash | 1M tokens | 64K tokens | Gemini countTokens API |
 | **Azure** | (Same as OpenAI) | (Same as OpenAI) | (Same as OpenAI) | tiktoken |
@@ -339,7 +341,7 @@ As a user, I want to manually compress conversation history at any time so that 
 **Proposed Approach:**
 - Default to using a "summarization model" per provider:
   - OpenAI: GPT-4o-mini
-  - Anthropic: Claude 3 Haiku
+  - Anthropic: Claude Haiku 4.5
   - Google: Gemini 2.5 Flash
 - Allow advanced users to configure summarization model
 - Measure quality vs. cost tradeoff in testing
