@@ -47,7 +47,7 @@ export default defineConfig({
   test: {
     name: 'backend',
     environment: 'node',
-    include: ['tests/backend/**/*.{test,spec}.ts'],
+    include: ['tests/backend/**/*.{test,spec}.ts', 'src/backend/**/__tests__/**/*.{test,spec}.ts'],
     exclude: ['**/node_modules/**', '**/out/**', '**/coverage/**'],
     // Load environment variables before running tests
     setupFiles: ['tests/setup.ts'],
