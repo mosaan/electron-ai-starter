@@ -143,11 +143,12 @@ As a user, I want to manually compress conversation history at any time so that 
 **Functional Requirements:**
 
 #### 2.1 Manual Trigger
-- **FR-2.1.1**: The system MUST provide a UI action to manually trigger compression (e.g., button, menu item)
+- **FR-2.1.1**: The system MUST provide a UI action to manually trigger compression (e.g., button, menu item, slash command)
 - **FR-2.1.2**: Manual compression SHOULD be accessible from:
   - Chat session controls (toolbar, context menu)
   - Session settings/options
-- **FR-2.1.3**: Manual compression action MUST be clearly labeled (e.g., "Summarize Conversation History")
+  - Slash command in chat input (e.g., `/summarize`)
+- **FR-2.1.3**: Manual compression action MUST be clearly labeled (e.g., "Summarize Conversation History" for buttons/menus, `/summarize` for slash commands)
 
 #### 2.2 Compression Scope
 - **FR-2.2.1**: Manual compression MUST summarize messages according to the same retention token budget as automatic compression
@@ -524,6 +525,9 @@ Conversation:
 - **FR-1.1.5**: API response token counts are now MAY (for monitoring only, not compression decisions)
 - **FR-1.3.2**: Changed from MUST to SHOULD (default value is a recommendation)
 - **FR-1.3.3**: Changed from SHOULD to MUST (configurability is required)
+- **FR-2.1.1**: Added slash command as an example of UI action
+- **FR-2.1.2**: Added slash command (`/summarize`) as an accessibility option
+- **FR-2.1.3**: Added slash command labeling example
 - **FR-3.2.1 Note**: Removed (redundant after hybrid approach removal)
 - **FR-3.3.1**: Changed from MAY to SHOULD for tiktoken o200k_base
 - **FR-3.3.2**: Updated to reference FR-5.2.1 for error handling (no fallback methods)
