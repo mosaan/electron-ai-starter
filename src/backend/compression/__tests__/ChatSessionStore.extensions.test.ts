@@ -1,36 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { drizzle } from 'drizzle-orm/libsql'
-import { createClient } from '@libsql/client'
-import { migrate } from 'drizzle-orm/libsql/migrator'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { createTestDatabaseWithChatTables } from '../../../../tests/backend/database-helper'
 import { ChatSessionStore } from '@backend/session/ChatSessionStore'
-import type { ChatMessageWithParts } from '@common/chat-types'
-import * as path from 'path'
-import * as fs from 'fs'
 
 describe('ChatSessionStore - Compression Extensions', () => {
-  let db: ReturnType<typeof drizzle>
+  let db: Awaited<ReturnType<typeof createTestDatabaseWithChatTables>>
   let store: ChatSessionStore
-  const testDbPath = ':memory:'
 
   beforeEach(async () => {
-    // Create in-memory database
-    const client = createClient({ url: testDbPath })
-    db = drizzle({ client })
-
-    // Run migrations
-    const migrationsFolder = path.join(process.cwd(), 'resources', 'db', 'migrations')
-    if (fs.existsSync(migrationsFolder)) {
-      await migrate(db, { migrationsFolder })
-    }
-
-    // Initialize store
+    db = await createTestDatabaseWithChatTables()
     store = new ChatSessionStore(db)
-  })
-
-  afterEach(async () => {
-    if (db?.$client) {
-      db.$client.close()
-    }
   })
 
   describe('createSnapshot', () => {
@@ -57,13 +35,11 @@ describe('ChatSessionStore - Compression Extensions', () => {
 
     it('should store snapshot with correct data', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const messageId = (
-        await store.addMessage({
-          sessionId,
-          role: 'user',
-          parts: [{ kind: 'text', content: 'Test' }]
-        })
-      ).id
+      const messageId = await store.addMessage({
+        sessionId,
+        role: 'user',
+        parts: [{ kind: 'text', content: 'Test' }]
+      })
 
       const summaryContent = { text: 'Summary of conversation', details: ['Point 1', 'Point 2'] }
       await store.createSnapshot({
@@ -92,13 +68,11 @@ describe('ChatSessionStore - Compression Extensions', () => {
 
     it('should return the most recent snapshot', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const messageId = (
-        await store.addMessage({
-          sessionId,
-          role: 'user',
-          parts: [{ kind: 'text', content: 'Test' }]
-        })
-      ).id
+      const messageId = await store.addMessage({
+        sessionId,
+        role: 'user',
+        parts: [{ kind: 'text', content: 'Test' }]
+      })
 
       // Create multiple snapshots
       await store.createSnapshot({
@@ -135,13 +109,11 @@ describe('ChatSessionStore - Compression Extensions', () => {
 
     it('should return all snapshots for a session', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const messageId = (
-        await store.addMessage({
-          sessionId,
-          role: 'user',
-          parts: [{ kind: 'text', content: 'Test' }]
-        })
-      ).id
+      const messageId = await store.addMessage({
+        sessionId,
+        role: 'user',
+        parts: [{ kind: 'text', content: 'Test' }]
+      })
 
       await store.createSnapshot({
         sessionId,
@@ -165,13 +137,11 @@ describe('ChatSessionStore - Compression Extensions', () => {
 
     it('should return snapshots in descending order by creation time', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const messageId = (
-        await store.addMessage({
-          sessionId,
-          role: 'user',
-          parts: [{ kind: 'text', content: 'Test' }]
-        })
-      ).id
+      const messageId = await store.addMessage({
+        sessionId,
+        role: 'user',
+        parts: [{ kind: 'text', content: 'Test' }]
+      })
 
       await store.createSnapshot({
         sessionId,
@@ -200,16 +170,16 @@ describe('ChatSessionStore - Compression Extensions', () => {
   describe('updateMessageTokens', () => {
     it('should update message token counts', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const message = await store.addMessage({
+      const messageId = await store.addMessage({
         sessionId,
         role: 'user',
         parts: [{ kind: 'text', content: 'Test message' }]
       })
 
-      await store.updateMessageTokens(message.id, 100, 50)
+      await store.updateMessageTokens(messageId, 100, 50)
 
       const session = await store.getSession(sessionId)
-      const updatedMessage = session?.messages.find((m) => m.id === message.id)
+      const updatedMessage = session?.messages.find((m) => m.id === messageId)
 
       expect(updatedMessage?.inputTokens).toBe(100)
       expect(updatedMessage?.outputTokens).toBe(50)
@@ -217,17 +187,17 @@ describe('ChatSessionStore - Compression Extensions', () => {
 
     it('should allow updating tokens multiple times', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const message = await store.addMessage({
+      const messageId = await store.addMessage({
         sessionId,
         role: 'user',
         parts: [{ kind: 'text', content: 'Test' }]
       })
 
-      await store.updateMessageTokens(message.id, 100, 50)
-      await store.updateMessageTokens(message.id, 200, 75)
+      await store.updateMessageTokens(messageId, 100, 50)
+      await store.updateMessageTokens(messageId, 200, 75)
 
       const session = await store.getSession(sessionId)
-      const updatedMessage = session?.messages.find((m) => m.id === message.id)
+      const updatedMessage = session?.messages.find((m) => m.id === messageId)
 
       expect(updatedMessage?.inputTokens).toBe(200)
       expect(updatedMessage?.outputTokens).toBe(75)
@@ -285,18 +255,20 @@ describe('ChatSessionStore - Compression Extensions', () => {
         sessionId,
         kind: 'summary',
         content: 'Summary of early conversation',
-        messageCutoffId: msg1.id,
+        messageCutoffId: msg1,
         tokenCount: 100
       })
 
       const context = await store.buildAIContext(sessionId)
 
-      // Should have: summary + msg3 + response2 (messages after msg1)
-      expect(context.length).toBe(3)
+      // Should have: summary + response1 + msg3 + response2 (messages after msg1)
+      expect(context.length).toBe(4)
       expect(context[0].role).toBe('system') // Summary message
       expect(context[0].parts[0].kind).toBe('text')
       expect((context[0].parts[0] as any).content).toContain('Summary')
-      expect(context[1].id).toBe(msg3.id)
+      expect(context[1].role).toBe('assistant') // response1
+      expect(context[2].id).toBe(msg3) // msg3
+      expect(context[3].role).toBe('assistant') // response2
     })
 
     it('should handle empty session', async () => {
@@ -306,27 +278,39 @@ describe('ChatSessionStore - Compression Extensions', () => {
       expect(context).toEqual([])
     })
 
-    it('should handle cutoff message not found', async () => {
+    it('should include all messages after cutoff in context', async () => {
       const sessionId = await store.createSession({ title: 'Test Session' })
-      const msg = await store.addMessage({
+      const msg1 = await store.addMessage({
         sessionId,
         role: 'user',
-        parts: [{ kind: 'text', content: 'Message' }]
+        parts: [{ kind: 'text', content: 'Message 1' }]
+      })
+      const msg2 = await store.addMessage({
+        sessionId,
+        role: 'assistant',
+        parts: [{ kind: 'text', content: 'Response 1' }]
+      })
+      const msg3 = await store.addMessage({
+        sessionId,
+        role: 'user',
+        parts: [{ kind: 'text', content: 'Message 2' }]
       })
 
-      // Create snapshot with non-existent cutoff ID
+      // Create snapshot with cutoff at msg2 (response1)
       await store.createSnapshot({
         sessionId,
         kind: 'summary',
-        content: 'Summary',
-        messageCutoffId: 'non-existent-id',
+        content: 'Summary of conversation up to response1',
+        messageCutoffId: msg2,
         tokenCount: 50
       })
 
-      // Should return all messages when cutoff is not found
       const context = await store.buildAIContext(sessionId)
-      expect(context.length).toBe(1)
-      expect(context[0].id).toBe(msg.id)
+
+      // Should have summary + msg3 (messages after msg2)
+      expect(context.length).toBe(2)
+      expect(context[0].role).toBe('system') // Summary
+      expect(context[1].id).toBe(msg3) // Only msg3 after cutoff
     })
   })
 })
