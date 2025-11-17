@@ -96,8 +96,8 @@ As a user engaged in a long conversation, I want the system to automatically man
 
 #### 1.3 Message Retention Strategy
 - **FR-1.3.1**: The system MUST preserve recent messages based on a **configurable token count** rather than message count
-- **FR-1.3.2**: Default token retention count MUST be **1000 tokens**
-- **FR-1.3.3**: Retention token count SHOULD be configurable in settings
+- **FR-1.3.2**: Default token retention count SHOULD be **1000 tokens**
+- **FR-1.3.3**: Retention token count MUST be configurable in settings
 - **FR-1.3.4**: The system MUST retain the maximum number of recent messages that fit within the retention token budget
   - Example: If retention budget is 1000 tokens, and the most recent 3 messages total 900 tokens while 4 messages total 1100 tokens, retain 3 messages
 - **FR-1.3.5**: Messages older than the retention boundary MUST be candidates for summarization
@@ -522,6 +522,8 @@ Conversation:
 - **FR-1.1.3**: Changed tiktoken o200k_base from MAY to SHOULD (recommended but not mandatory)
 - **FR-1.1.4**: Renumbered from FR-1.1.3 (token count inclusion requirements)
 - **FR-1.1.5**: API response token counts are now MAY (for monitoring only, not compression decisions)
+- **FR-1.3.2**: Changed from MUST to SHOULD (default value is a recommendation)
+- **FR-1.3.3**: Changed from SHOULD to MUST (configurability is required)
 - **FR-3.2.1 Note**: Removed (redundant after hybrid approach removal)
 - **FR-3.3.1**: Changed from MAY to SHOULD for tiktoken o200k_base
 - **FR-3.3.2**: Updated to reference FR-5.2.1 for error handling (no fallback methods)
