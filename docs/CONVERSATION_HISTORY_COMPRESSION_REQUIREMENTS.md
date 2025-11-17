@@ -181,12 +181,32 @@ As a user, I want to manually compress conversation history at any time so that 
 **Note:** Auto-compression cannot be disabled as it is essential for continued operation when approaching context limits.
 
 #### 3.2 Model-Specific Configuration
-- **FR-3.2.1**: The system MUST maintain a configuration map for each supported model containing:
-  - Context window size (tokens)
+
+- **FR-3.2.1**: The system MUST maintain model configuration in the database (not hardcoded) for each model, including:
+  - **Maximum input tokens** (the maximum number of tokens that can be sent as input context)
   - Maximum output tokens
-  - Default compression threshold
+  - Default compression threshold percentage
   - Default retention token count
-- **FR-3.2.2**: Configuration SHOULD be updateable as new models are released
+
+- **FR-3.2.2**: When a new model is detected (e.g., from AI provider API or user selection), the system SHOULD:
+  - Attempt to retrieve maximum input tokens from API metadata or model information
+  - If retrieval fails or information is unavailable, use a conservative default (128,000 tokens for input)
+  - Store the configuration in the database
+  - Allow user to modify the configuration later via Settings UI
+
+- **FR-3.2.3**: For custom/manually added models, the system MUST:
+  - Prompt user to specify maximum input tokens (with 128,000 token default suggestion)
+  - Allow user to configure all compression-related settings
+  - Store configuration in database
+
+- **FR-3.2.4**: The system MUST provide UI for users to:
+  - View current model configurations (maximum input tokens, output tokens, thresholds)
+  - Edit maximum input tokens and other compression settings per model
+  - Reset to detected/default values if needed
+
+- **FR-3.2.5**: Model configuration updates MUST be persisted in the database and applied immediately to compression decisions
+
+**Note:** "Maximum input tokens" is the critical value for compression decisions. It represents how many tokens can be sent to the model as input context, and is calculated as: `total context window - max output tokens` (if both values are known from API).
 
 #### 3.3 Tokenization Library Management
 - **FR-3.3.1**: The system MUST handle tokenization errors according to FR-5.2.1 (display error and allow retry; no fallback methods)
@@ -206,7 +226,18 @@ As a user, I want to manually compress conversation history at any time so that 
   - `contentJson`: JSON object containing summary text and metadata
   - `messageCutoffId`: Reference to last message included in summary
   - `tokenCount`: Token count of the summary content
-- **FR-4.1.3**: A new field MAY be added to `chatMessages` if needed:
+- **FR-4.1.3**: A new `modelConfigs` table MUST be created to store model configurations:
+  - `id`: Primary key (format: "provider:model")
+  - `provider`: AI provider name (openai, anthropic, google, azure)
+  - `model`: Model name
+  - `maxInputTokens`: Maximum input context tokens
+  - `maxOutputTokens`: Maximum response tokens
+  - `defaultCompressionThreshold`: Default threshold percentage (0-1)
+  - `recommendedRetentionTokens`: Default retention token count
+  - `source`: Configuration source ('api' | 'manual' | 'default')
+  - `lastUpdated`: Timestamp of last update
+  - `createdAt`: Creation timestamp
+- **FR-4.1.4**: A new field MAY be added to `chatMessages` if needed:
   - `isSummarized`: Boolean flag indicating if message is part of a summary (optional)
 
 #### 4.2 Summary Content Format
@@ -512,10 +543,17 @@ Conversation:
 
 ---
 
-**Document Version:** 1.5
-**Last Updated:** 2025-11-16
+**Document Version:** 1.6
+**Last Updated:** 2025-11-17
 **Author:** Claude Code Agent
 **Status:** Requirements Finalized - Ready for Implementation
+
+**Changes in v1.6:**
+- **FR-4.1.3**: Added new requirement for `modelConfigs` database table to store model configurations
+  - Specifies schema for database-backed model configuration (aligns with FR-3.2.1)
+  - Includes all necessary fields: maxInputTokens, maxOutputTokens, thresholds, source tracking, timestamps
+- **FR-4.1.4**: Renumbered from FR-4.1.3 (optional isSummarized field)
+- **Alignment**: This change ensures database schema requirements match the model configuration approach defined in FR-3.2
 
 **Changes in v1.5:**
 - **FR-1.1.2**: Removed hybrid approach; token counting MUST always be performed locally

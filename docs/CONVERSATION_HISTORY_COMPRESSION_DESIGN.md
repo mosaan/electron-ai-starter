@@ -214,145 +214,236 @@ class TokenCounter {
 4. **Handles all message types**: text, tool calls, tool results, attachments
 5. **Acceptable accuracy**: ±10-15% for non-OpenAI models is acceptable for 95% threshold detection
 
-### 2. Model Configuration Registry
+### 2. Model Configuration Service
 
-**Location:** `src/backend/compression/ModelConfig.ts`
+**Location:** `src/backend/compression/ModelConfigService.ts`
 
-**Purpose:** Centralized configuration for all supported models
+**Purpose:** Database-backed configuration management for AI models
 
 **Interface:**
 ```typescript
-interface ModelContextConfig {
-  provider: string;
-  model: string;
-  contextWindow: number;        // Total context in tokens
+interface ModelConfig {
+  id: string;                   // Unique identifier (provider:model)
+  provider: string;             // AI provider (openai, anthropic, google, azure)
+  model: string;                // Model name
+  maxInputTokens: number;       // Maximum input context tokens (critical for compression)
   maxOutputTokens: number;      // Maximum response tokens
   defaultCompressionThreshold: number; // Percentage (0-1)
   recommendedRetentionTokens: number;  // Tokens to preserve for recent messages
+  source: 'api' | 'manual' | 'default'; // How this config was obtained
+  lastUpdated: number;          // Timestamp of last update
 }
 
 // Note: All models use tiktoken o200k_base for local token counting (recommended)
 //       Alternative tokenizers may be used if they provide better accuracy
-// Note: This configuration includes both currently available models and future models.
-//       When implementing, ensure corresponding models are also added to src/backend/ai/factory.ts
 
-class ModelConfigRegistry {
-  private static configs: Map<string, ModelContextConfig> = new Map([
-    // OpenAI models
-    ['openai:gpt-5', {
-      provider: 'openai',
-      model: 'gpt-5',
-      contextWindow: 400000,
-      maxOutputTokens: 128000,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 2000,
-    }],
-    ['openai:gpt-4o', {
-      provider: 'openai',
-      model: 'gpt-4o',
-      contextWindow: 128000,
-      maxOutputTokens: 16384,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1000,
-    }],
-    ['openai:gpt-4o-mini', {
-      provider: 'openai',
-      model: 'gpt-4o-mini',
-      contextWindow: 128000,
-      maxOutputTokens: 16384,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1000,
-    }],
-    ['openai:gpt-4-turbo', {
-      provider: 'openai',
-      model: 'gpt-4-turbo',
-      contextWindow: 128000,
-      maxOutputTokens: 4096,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1000,
-    }],
+class ModelConfigService {
+  constructor(private db: Database);
 
-    // Anthropic models (4.5 generation)
-    ['anthropic:claude-sonnet-4-5-20250929', {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
-      contextWindow: 200000, // 1M with beta header, but default to 200K
-      maxOutputTokens: 64000,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1500,
-    }],
-    ['anthropic:claude-opus-4-1', {
-      provider: 'anthropic',
-      model: 'claude-opus-4-1',
-      contextWindow: 200000,
-      maxOutputTokens: 4096,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1500,
-    }],
-    ['anthropic:claude-haiku-4-5', {
-      provider: 'anthropic',
-      model: 'claude-haiku-4-5',
-      contextWindow: 200000,
-      maxOutputTokens: 64000,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1500,
-    }],
+  /**
+   * Get configuration for a specific model
+   * If not in database, attempts to detect from API and stores it
+   */
+  async getConfig(provider: string, model: string): Promise<ModelConfig>;
 
-    // Legacy Anthropic models (3.x generation)
-    ['anthropic:claude-3-5-sonnet-20241022', {
-      provider: 'anthropic',
-      model: 'claude-3-5-sonnet-20241022',
-      contextWindow: 200000,
-      maxOutputTokens: 8192,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1500,
-    }],
-    ['anthropic:claude-3-opus-20240229', {
-      provider: 'anthropic',
-      model: 'claude-3-opus-20240229',
-      contextWindow: 200000,
-      maxOutputTokens: 4096,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1500,
-    }],
-    ['anthropic:claude-3-haiku-20240307', {
-      provider: 'anthropic',
-      model: 'claude-3-haiku-20240307',
-      contextWindow: 200000,
-      maxOutputTokens: 4096,
-      defaultCompressionThreshold: 0.95,
-      recommendedRetentionTokens: 1500,
-    }],
+  /**
+   * Detect model configuration from API metadata
+   * Returns null if detection fails
+   */
+  async detectFromAPI(provider: string, model: string): Promise<ModelConfig | null>;
 
-    // Google models
-    ['google:gemini-2.5-pro', {
-      provider: 'google',
-      model: 'gemini-2.5-pro',
-      contextWindow: 1048576,
-      maxOutputTokens: 65535,
-      defaultCompressionThreshold: 0.98, // Higher threshold due to massive context
-      recommendedRetentionTokens: 2000,
-    }],
-    ['google:gemini-2.5-flash', {
-      provider: 'google',
-      model: 'gemini-2.5-flash',
-      contextWindow: 1048576,
-      maxOutputTokens: 65535,
-      defaultCompressionThreshold: 0.98,
-      recommendedRetentionTokens: 2000,
-    }],
-  ]);
+  /**
+   * Save or update model configuration
+   */
+  async saveConfig(config: ModelConfig): Promise<void>;
 
-  static getConfig(provider: string, model: string): ModelContextConfig | undefined {
-    const key = `${provider}:${model}`;
-    return this.configs.get(key);
-  }
+  /**
+   * Get all stored model configurations
+   */
+  async getAllConfigs(): Promise<ModelConfig[]>;
 
-  static getAllConfigs(): ModelContextConfig[] {
-    return Array.from(this.configs.values());
-  }
+  /**
+   * Update specific fields of a model configuration
+   */
+  async updateConfig(id: string, updates: Partial<ModelConfig>): Promise<void>;
+
+  /**
+   * Delete a model configuration
+   */
+  async deleteConfig(id: string): Promise<void>;
 }
 ```
+
+**Default Fallback Values:**
+```typescript
+const DEFAULT_CONFIG: Partial<ModelConfig> = {
+  maxInputTokens: 128000,       // Conservative default
+  maxOutputTokens: 4096,
+  defaultCompressionThreshold: 0.95,
+  recommendedRetentionTokens: 1000,
+  source: 'default'
+};
+```
+
+**Known Model Configurations (Initial Seed Data):**
+
+These configurations should be seeded into the database on first run:
+
+```typescript
+const SEED_CONFIGS: ModelConfig[] = [
+  // OpenAI models
+  {
+    id: 'openai:gpt-5',
+    provider: 'openai',
+    model: 'gpt-5',
+    maxInputTokens: 272000,  // 400K - 128K
+    maxOutputTokens: 128000,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 2000,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'openai:gpt-4o',
+    provider: 'openai',
+    model: 'gpt-4o',
+    maxInputTokens: 111616,  // 128K - 16K
+    maxOutputTokens: 16384,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1000,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'openai:gpt-4o-mini',
+    provider: 'openai',
+    model: 'gpt-4o-mini',
+    maxInputTokens: 111616,  // 128K - 16K
+    maxOutputTokens: 16384,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1000,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'openai:gpt-4-turbo',
+    provider: 'openai',
+    model: 'gpt-4-turbo',
+    maxInputTokens: 123904,  // 128K - 4K
+    maxOutputTokens: 4096,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1000,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+
+  // Anthropic models (4.5 generation)
+  {
+    id: 'anthropic:claude-sonnet-4-5-20250929',
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-5-20250929',
+    maxInputTokens: 136000,  // 200K - 64K (1M with beta header available)
+    maxOutputTokens: 64000,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1500,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'anthropic:claude-opus-4-1',
+    provider: 'anthropic',
+    model: 'claude-opus-4-1',
+    maxInputTokens: 196000,  // 200K - 4K
+    maxOutputTokens: 4096,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1500,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'anthropic:claude-haiku-4-5',
+    provider: 'anthropic',
+    model: 'claude-haiku-4-5',
+    maxInputTokens: 136000,  // 200K - 64K
+    maxOutputTokens: 64000,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1500,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+
+  // Legacy Anthropic models (3.x generation)
+  {
+    id: 'anthropic:claude-3-5-sonnet-20241022',
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet-20241022',
+    maxInputTokens: 191808,  // 200K - 8K
+    maxOutputTokens: 8192,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1500,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'anthropic:claude-3-opus-20240229',
+    provider: 'anthropic',
+    model: 'claude-3-opus-20240229',
+    maxInputTokens: 196000,  // 200K - 4K
+    maxOutputTokens: 4096,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1500,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'anthropic:claude-3-haiku-20240307',
+    provider: 'anthropic',
+    model: 'claude-3-haiku-20240307',
+    maxInputTokens: 196000,  // 200K - 4K
+    maxOutputTokens: 4096,
+    defaultCompressionThreshold: 0.95,
+    recommendedRetentionTokens: 1500,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+
+  // Google models
+  {
+    id: 'google:gemini-2.5-pro',
+    provider: 'google',
+    model: 'gemini-2.5-pro',
+    maxInputTokens: 983041,  // 1M - 65K
+    maxOutputTokens: 65535,
+    defaultCompressionThreshold: 0.98, // Higher threshold due to massive context
+    recommendedRetentionTokens: 2000,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+  {
+    id: 'google:gemini-2.5-flash',
+    provider: 'google',
+    model: 'gemini-2.5-flash',
+    maxInputTokens: 983041,  // 1M - 65K
+    maxOutputTokens: 65535,
+    defaultCompressionThreshold: 0.98,
+    recommendedRetentionTokens: 2000,
+    source: 'api',
+    lastUpdated: Date.now()
+  },
+];
+```
+
+**Implementation Notes:**
+
+1. **Database Schema**: Add a `modelConfigs` table to store these configurations
+2. **Initialization**: Seed database with `SEED_CONFIGS` on first run
+3. **Dynamic Updates**: When new models are detected, attempt API metadata retrieval and store
+4. **User Overrides**: Allow users to edit any configuration value via Settings UI
+5. **maxInputTokens Calculation**: When both context window and max output are known from API:
+   ```typescript
+   maxInputTokens = contextWindow - maxOutputTokens
+   ```
+
 
 ### 3. CompressionService
 
@@ -400,7 +491,8 @@ class CompressionService {
   constructor(
     private tokenCounter: TokenCounter,
     private summarizationService: SummarizationService,
-    private sessionStore: ChatSessionStore
+    private sessionStore: ChatSessionStore,
+    private modelConfigService: ModelConfigService
   );
 
   /**
@@ -445,8 +537,8 @@ async checkContext(
   model: string,
   additionalInput?: string
 ): Promise<ContextCheckResult> {
-  // 1. Get model configuration
-  const modelConfig = ModelConfigRegistry.getConfig(provider, model);
+  // 1. Get model configuration (database-backed)
+  const modelConfig = await this.modelConfigService.getConfig(provider, model);
   if (!modelConfig) {
     throw new Error(`Model configuration not found: ${provider}:${model}`);
   }
@@ -482,10 +574,10 @@ async checkContext(
   // 6. Count tokens
   const tokenCount = await this.tokenCounter.countConversationTokens(contextMessages);
 
-  // 7. Calculate available space
-  const reservedForResponse = modelConfig.maxOutputTokens;
-  const safetyMargin = Math.floor(modelConfig.contextWindow * 0.05);
-  const availableForContext = modelConfig.contextWindow - reservedForResponse - safetyMargin;
+  // 7. Calculate available space for input
+  // maxInputTokens already accounts for maxOutputTokens (= contextWindow - maxOutputTokens)
+  const safetyMargin = Math.floor(modelConfig.maxInputTokens * 0.05);
+  const availableForContext = modelConfig.maxInputTokens - safetyMargin;
 
   // 8. Determine if compression needed
   const threshold = modelConfig.defaultCompressionThreshold;
@@ -525,8 +617,8 @@ async checkContext(
 async autoCompress(options: CompressionOptions): Promise<CompressionResult> {
   const { sessionId, provider, model, retentionTokenCount } = options;
 
-  // 1. Get model config
-  const modelConfig = ModelConfigRegistry.getConfig(provider, model);
+  // 1. Get model config (database-backed)
+  const modelConfig = await this.modelConfigService.getConfig(provider, model);
   if (!modelConfig) {
     throw new Error(`Model configuration not found: ${provider}:${model}`);
   }
@@ -756,6 +848,51 @@ private selectSummarizationModel(provider: string): string {
 ```
 
 ### 5. Database Extensions
+
+#### 5.1 New Database Table: modelConfigs
+
+**Location:** `src/backend/db/schema.ts`
+
+**Schema:**
+```typescript
+export const modelConfigs = sqliteTable('modelConfigs', {
+  id: text('id').primaryKey(), // Format: "provider:model" (e.g., "openai:gpt-4o")
+  provider: text('provider').notNull(), // openai, anthropic, google, azure
+  model: text('model').notNull(), // Model name
+  maxInputTokens: integer('maxInputTokens').notNull(), // Maximum input context tokens
+  maxOutputTokens: integer('maxOutputTokens').notNull(), // Maximum response tokens
+  defaultCompressionThreshold: real('defaultCompressionThreshold').notNull().default(0.95), // 0-1
+  recommendedRetentionTokens: integer('recommendedRetentionTokens').notNull().default(1000),
+  source: text('source').notNull(), // 'api' | 'manual' | 'default'
+  lastUpdated: integer('lastUpdated', { mode: 'timestamp' }).notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
+});
+
+// Index for provider lookups
+export const modelConfigsProviderIdx = index('modelConfigs_provider_idx').on(modelConfigs.provider);
+```
+
+**Migration:**
+```sql
+CREATE TABLE modelConfigs (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  maxInputTokens INTEGER NOT NULL,
+  maxOutputTokens INTEGER NOT NULL,
+  defaultCompressionThreshold REAL NOT NULL DEFAULT 0.95,
+  recommendedRetentionTokens INTEGER NOT NULL DEFAULT 1000,
+  source TEXT NOT NULL,
+  lastUpdated INTEGER NOT NULL,
+  createdAt INTEGER NOT NULL
+);
+
+CREATE INDEX modelConfigs_provider_idx ON modelConfigs(provider);
+```
+
+**Seed Data:** On first run, the application should seed the database with the configurations defined in section 2 (Model Configuration Service).
+
+#### 5.2 Updates to ChatSessionStore
 
 **Location:** Updates to `src/backend/session/ChatSessionStore.ts`
 
@@ -1365,12 +1502,14 @@ describe('Compression Integration', () => {
 ## Migration and Rollout
 
 ### Phase 1: Backend Implementation (Week 1-2)
-1. Implement `TokenCounter` for OpenAI
-2. Implement `ModelConfigRegistry`
-3. Implement `SummarizationService`
-4. Implement `CompressionService`
-5. Add database methods to `ChatSessionStore`
-6. Unit tests for all services
+1. Implement `TokenCounter` with tiktoken o200k_base
+2. Implement `ModelConfigService` (database-backed)
+3. Add `modelConfigs` table to database schema
+4. Seed database with known model configurations
+5. Implement `SummarizationService`
+6. Implement `CompressionService`
+7. Add database methods to `ChatSessionStore`
+8. Unit tests for all services
 
 ### Phase 2: IPC and Integration (Week 2-3)
 1. Add IPC handlers
@@ -1468,9 +1607,22 @@ describe('Compression Integration', () => {
 
 ---
 
-**Document Version:** 3.0
-**Last Updated:** 2025-11-16
+**Document Version:** 3.1
+**Last Updated:** 2025-11-17
 **Status:** Aligned with Requirements v1.5 - Ready for Implementation
+
+**Major Changes in v3.1:**
+- **Model configuration**: Changed from static `ModelConfigRegistry` to database-backed `ModelConfigService`
+  - Model configurations now stored in database, not hardcoded
+  - Added API auto-detection capability for new models
+  - Conservative default fallback (128k tokens) when detection fails
+  - User-configurable via Settings UI
+  - Changed from `contextWindow` to `maxInputTokens` as the critical field
+  - Calculation: `maxInputTokens = contextWindow - maxOutputTokens`
+- **Database schema**: Added `modelConfigs` table requirement
+- **Seed data**: Updated seed configurations with calculated `maxInputTokens` values
+- **CompressionService**: Updated to use async `modelConfigService.getConfig()` instead of synchronous `ModelConfigRegistry.getConfig()`
+- **Implementation phases**: Added database schema and seeding steps to Phase 1
 
 **Major Changes in v3.0:**
 - **Token counting**: Removed hybrid approach; all counting is now local-only using tiktoken o200k_base
