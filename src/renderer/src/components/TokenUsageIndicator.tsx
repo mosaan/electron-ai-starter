@@ -9,21 +9,21 @@ import {
 import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
 import type { TokenUsageInfo, AIModelSelection } from '@common/types'
+import type { ChatSessionWithMessages } from '@common/chat-types'
 
 interface TokenUsageIndicatorProps {
   sessionId: string | null | undefined
   modelSelection: AIModelSelection | null
+  currentSession: ChatSessionWithMessages | null
 }
 
-export function TokenUsageIndicator({ sessionId, modelSelection }: TokenUsageIndicatorProps): React.JSX.Element | null {
+export function TokenUsageIndicator({ sessionId, modelSelection, currentSession }: TokenUsageIndicatorProps): React.JSX.Element | null {
   const [tokenUsage, setTokenUsage] = useState<TokenUsageInfo | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch token usage periodically
+  // Fetch token usage when session or model changes
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null
-
     const fetchTokenUsage = async (): Promise<void> => {
       if (!sessionId || !modelSelection) {
         setTokenUsage(null)
@@ -62,20 +62,8 @@ export function TokenUsageIndicator({ sessionId, modelSelection }: TokenUsageInd
       }
     }
 
-    // Initial fetch
     fetchTokenUsage()
-
-    // Poll every 3 seconds when there's an active session
-    if (sessionId && modelSelection) {
-      intervalId = setInterval(fetchTokenUsage, 3000)
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
-    }
-  }, [sessionId, modelSelection])
+  }, [sessionId, modelSelection, currentSession?.updatedAt, currentSession?.messageCount])
 
   // Don't render if no session or model selected
   if (!sessionId || !modelSelection || error) {

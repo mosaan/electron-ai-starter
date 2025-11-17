@@ -77,10 +77,8 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
     checkProviderConfigs()
   }, [modelSelection, setModelSelection])
 
-  // Check if compression is needed and get API key
+  // Check if compression is needed and get API key when session or model changes
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null
-
     const checkCompression = async (): Promise<void> => {
       if (!currentSessionId || !modelSelection) {
         setCompressionNeeded(false)
@@ -112,20 +110,8 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
       }
     }
 
-    // Initial check
     checkCompression()
-
-    // Poll every 5 seconds
-    if (currentSessionId && modelSelection) {
-      intervalId = setInterval(checkCompression, 5000)
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
-    }
-  }, [currentSessionId, modelSelection])
+  }, [currentSessionId, modelSelection, currentSession?.updatedAt, currentSession?.messageCount])
 
   // Handle compression completion
   const handleCompressionComplete = (result: CompressionResult): void => {
@@ -164,7 +150,7 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
                 </div>
               )}
             </div>
-            <TokenUsageIndicator sessionId={currentSessionId} modelSelection={modelSelection} />
+            <TokenUsageIndicator sessionId={currentSessionId} modelSelection={modelSelection} currentSession={currentSession} />
             {compressionNeeded && currentSessionId && modelSelection && apiKey && (
               <Button
                 variant="outline"
