@@ -34,13 +34,13 @@ Use timestamps to track progress. Update this section at every stopping point.
   - [ ] Add "Test Configuration" button to verify settings (Deferred - not critical for MVP)
   - [x] Persist settings to database via backend API
 
-- [ ] Milestone 3: Token Usage Display
-  - [ ] Create `TokenUsageIndicator.tsx` component
-  - [ ] Integrate into ChatPanel header
-  - [ ] Show current tokens / max tokens with percentage
-  - [ ] Color-code indicator (green < 70%, yellow 70-90%, red > 90%)
-  - [ ] Add tooltip with detailed breakdown
-  - [ ] Poll backend for token count on message changes
+- [x] Milestone 3: Token Usage Display (Completed: 2025-11-17)
+  - [x] Create `TokenUsageIndicator.tsx` component
+  - [x] Integrate into ChatPanel header
+  - [x] Show current tokens / max tokens with percentage
+  - [x] Color-code indicator (green < 70%, yellow 70-90%, orange 90-95%, red > 95%)
+  - [x] Add tooltip with detailed breakdown
+  - [x] Poll backend for token count on message changes (every 3 seconds)
 
 - [ ] Milestone 4: Manual Compression UI
   - [ ] Add "Compress Conversation" button to ChatPanel

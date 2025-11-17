@@ -4,6 +4,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Thread } from '@renderer/components/assistant-ui/thread'
 import { AIRuntimeProvider } from '@renderer/components/AIRuntimeProvider'
 import { ModelSelector } from '@renderer/components/ModelSelector'
+import { TokenUsageIndicator } from '@renderer/components/TokenUsageIndicator'
 import { Alert, AlertDescription, AlertTitle } from '@renderer/components/ui/alert'
 import { useSessionManager } from '@renderer/contexts/SessionManager'
 import type { AISettingsV2, AIModelSelection } from '@common/types'
@@ -97,6 +98,7 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
                 </div>
               )}
             </div>
+            <TokenUsageIndicator sessionId={currentSessionId} modelSelection={modelSelection} />
             <Button variant="ghost" size="icon" onClick={onSettings} className="h-9 w-9">
               <Settings className="h-4 w-4" />
             </Button>
