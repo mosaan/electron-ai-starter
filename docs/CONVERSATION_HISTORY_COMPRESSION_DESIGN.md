@@ -21,9 +21,7 @@ graph TB
         G --> H[TokenCounter]
         G --> I[SummarizationService]
         G --> J[ChatSessionStore]
-        H --> K[OpenAI Tokenizer]
-        H --> L[Anthropic API]
-        H --> M[Gemini API]
+        H --> K[tiktoken o200k_base]
         I --> N[AI Provider]
         J --> O[(SQLite DB)]
     end
@@ -65,11 +63,11 @@ Following the application's existing pattern:
 **Location:** `src/backend/compression/TokenCounter.ts`
 
 **Responsibilities:**
-- Count tokens using hybrid approach: recorded tokens (priority) + tiktoken fallback
+- Count tokens using local calculation (tiktoken o200k_base recommended)
 - Provide fast, local token counting without API calls
 - Handle message parts (text, tool calls, attachments)
 
-**Design Decision:** See `CONVERSATION_HISTORY_COMPRESSION_TOKEN_COUNTING_STRATEGY.md` for detailed rationale.
+**Design Decision:** See `CONVERSATION_HISTORY_COMPRESSION_TOKEN_COUNTING_STRATEGY.md` for detailed rationale. All token counting is performed locally; API response token counts may be recorded for monitoring but are not used for compression decisions.
 
 **Interface:**
 ```typescript
@@ -86,9 +84,8 @@ class TokenCounter {
   constructor();
 
   /**
-   * Count tokens for a single message (hybrid approach)
-   * - Uses recorded tokens if available (inputTokens + outputTokens)
-   * - Falls back to tiktoken o200k_base calculation
+   * Count tokens for a single message using local calculation
+   * Uses tiktoken o200k_base encoding (recommended)
    */
   countMessageTokens(message: ChatMessage): number;
 
@@ -98,7 +95,7 @@ class TokenCounter {
   countConversationTokens(messages: ChatMessage[]): TokenCountResult;
 
   /**
-   * Count tokens for raw text (fallback method)
+   * Count tokens for raw text
    */
   countText(text: string): number;
 
@@ -111,7 +108,7 @@ class TokenCounter {
 
 **Implementation Details:**
 
-#### Hybrid Token Counting (Single Implementation)
+#### Local Token Counting
 
 ```typescript
 import { get_encoding, type Tiktoken } from 'tiktoken';
@@ -120,20 +117,15 @@ class TokenCounter {
   private encoding: Tiktoken;
 
   constructor() {
-    // Use o200k_base as universal fallback tokenizer
+    // Use o200k_base encoding (recommended for all providers)
     this.encoding = get_encoding('o200k_base');
   }
 
   /**
-   * Count tokens for a single message (hybrid approach)
+   * Count tokens for a single message using local calculation
    */
   countMessageTokens(message: ChatMessage): number {
-    // Priority: Use recorded tokens if available
-    if (message.inputTokens != null || message.outputTokens != null) {
-      return (message.inputTokens ?? 0) + (message.outputTokens ?? 0);
-    }
-
-    // Fallback: Calculate using tiktoken
+    // Always calculate locally
     return this.calculateTokens(message);
   }
 
@@ -216,10 +208,11 @@ class TokenCounter {
 ```
 
 **Key Points:**
-1. **Single tokenizer**: tiktoken o200k_base for all providers
-2. **Hybrid logic**: Recorded tokens (100% accurate) → tiktoken fallback (±10-15% for non-OpenAI)
-3. **No API calls**: All counting is local and fast
+1. **Single tokenizer**: tiktoken o200k_base for all providers (recommended)
+2. **Always local**: All token counting performed locally before sending requests
+3. **No API calls**: Fast, offline-capable token counting
 4. **Handles all message types**: text, tool calls, tool results, attachments
+5. **Acceptable accuracy**: ±10-15% for non-OpenAI models is acceptable for 95% threshold detection
 
 ### 2. Model Configuration Registry
 
@@ -238,7 +231,8 @@ interface ModelContextConfig {
   recommendedRetentionTokens: number;  // Tokens to preserve for recent messages
 }
 
-// Note: tokenizerType removed - all models use tiktoken o200k_base for fallback counting
+// Note: All models use tiktoken o200k_base for local token counting (recommended)
+//       Alternative tokenizers may be used if they provide better accuracy
 // Note: This configuration includes both currently available models and future models.
 //       When implementing, ensure corresponding models are also added to src/backend/ai/factory.ts
 
@@ -1211,29 +1205,26 @@ sequenceDiagram
 #### TokenCounter Tests
 ```typescript
 describe('TokenCounter', () => {
-  describe('OpenAI', () => {
-    it('should count tokens for GPT-4o correctly', async () => {
-      const counter = new TokenCounter({ provider: 'openai', model: 'gpt-4o' });
-      const tokens = await counter.countMessageTokens({
+  describe('Local Token Counting', () => {
+    it('should count tokens for simple text messages', async () => {
+      const counter = new TokenCounter();
+      const tokens = counter.countMessageTokens({
         role: 'user',
-        content: 'Hello, world!',
+        parts: [{ kind: 'text', content: 'Hello, world!' }],
       });
       expect(tokens).toBeGreaterThan(0);
     });
 
-    it('should count tool calls', async () => {
+    it('should count tool calls accurately', async () => {
       // Test tool call token counting
     });
-  });
 
-  describe('Anthropic', () => {
-    it('should use API for token counting', async () => {
-      // Mock Anthropic API
-      // Test token counting
+    it('should handle all message part types', async () => {
+      // Test text, tool_invocation, tool_result, attachment
     });
 
-    it('should fall back to estimation on API failure', async () => {
-      // Test fallback behavior
+    it('should be consistent across providers', async () => {
+      // Same message should produce same token count regardless of provider
     });
   });
 });
@@ -1283,27 +1274,30 @@ describe('Compression Integration', () => {
 
 ### Manual Testing Checklist
 
-- [ ] Auto-compression triggers at 95% threshold
-- [ ] Manual compression works with confirmation dialog
+- [ ] Auto-compression triggers at 95% threshold (default, configurable)
+- [ ] Manual compression works via UI button or slash command (/summarize)
 - [ ] Token usage indicator updates in real-time
-- [ ] Summaries display correctly in chat UI
+- [ ] Summaries display correctly in chat UI (if implemented)
 - [ ] Compressed context reduces token count significantly
 - [ ] AI responses maintain coherence after compression
-- [ ] Error handling works (API failures, network errors)
+- [ ] Error handling works - summarization failures prevent AI requests and show retry option
+- [ ] Token counting failures show error and retry option (no unsafe fallbacks)
 - [ ] Settings persist across app restarts
 - [ ] Multi-provider support (OpenAI, Anthropic, Google)
+- [ ] Threshold and retention token count are configurable per model
 
 ## Performance Considerations
 
 ### Token Counting Performance
 
-**Challenge:** Token counting for every message on every request could be slow.
+**Challenge:** Token counting for every message on every request needs to be fast.
 
 **Optimizations:**
-1. **Cache token counts**: Store in database (`inputTokens`, `outputTokens` fields)
+1. **Local calculation**: All counting is done locally using tiktoken (no network latency)
 2. **Incremental counting**: Only count new messages since last check
-3. **Approximate counting**: Use estimation for initial checks, precise counting only when near threshold
-4. **Async operations**: Perform token counting in background, don't block UI
+3. **Efficient implementation**: tiktoken o200k_base is optimized for speed
+4. **Optional caching**: API response token counts may be recorded for monitoring (not used for decisions)
+5. **Async operations**: Perform token counting in background, don't block UI
 
 ### Database Query Optimization
 
@@ -1391,11 +1385,11 @@ describe('Compression Integration', () => {
 4. Add settings UI for configuration
 5. Manual testing
 
-### Phase 4: Multi-Provider Support (Week 4-5)
-1. Implement Anthropic token counting
-2. Implement Gemini token counting
-3. Test with all providers
-4. Performance tuning
+### Phase 4: Multi-Provider Testing (Week 4-5)
+1. Test token counting accuracy across all providers (OpenAI, Anthropic, Google)
+2. Validate compression behavior with different model context limits
+3. Performance tuning and optimization
+4. Error handling refinement
 
 ### Phase 5: Polish and Documentation (Week 5-6)
 1. Error handling improvements
@@ -1411,15 +1405,17 @@ describe('Compression Integration', () => {
 **Implementation:** See `autoCompress` method lines 584-593 for logic that checks for existing summaries and includes them in re-summarization.
 
 ### ✅ RESOLVED: Token Counting Strategy
-**Decision:** Hybrid approach - recorded tokens (priority) + tiktoken o200k_base (fallback)
+**Decision:** Local-only token counting using tiktoken o200k_base (recommended)
 
 **Details:**
-- **Recorded tokens**: Use `inputTokens` and `outputTokens` from AI response `usage` field (100% accurate)
-- **Fallback**: tiktoken o200k_base for local calculation when no record exists (±10-15% for non-OpenAI)
+- **Always local**: All token counting performed locally before sending requests
+- **No API calls**: Compression decisions require pre-request token counts (API responses come after)
+- **Universal tokenizer**: tiktoken o200k_base provides reasonable accuracy across all providers (±10-15% for non-OpenAI)
 - **Tool invocations**: Serialize JSON input/output, then count with tiktoken
 - **Attachments**: Count metadata only (filename, MIME type, size) - not content
+- **API tokens**: May be recorded for monitoring but NOT used for compression decisions (cumulative, not per-message)
 
-**Rationale:** See `CONVERSATION_HISTORY_COMPRESSION_TOKEN_COUNTING_STRATEGY.md` for detailed analysis of alternatives and decision rationale.
+**Rationale:** See `CONVERSATION_HISTORY_COMPRESSION_TOKEN_COUNTING_STRATEGY.md` for detailed analysis showing why hybrid approach was rejected.
 
 ### ✅ RESOLVED: Message Retention Strategy
 **Decision:** Retention is based on TOKEN COUNT, not message count. The system retains the maximum number of recent messages that fit within a configurable token budget (default: 1000 tokens).
@@ -1438,14 +1434,28 @@ describe('Compression Integration', () => {
 **Proposal:** Singleton pattern for tokenizers per model.
 **Status:** To be decided during implementation.
 
-### 2. How to handle token counting failures gracefully?
-**Options:**
-- A) Fail request (strict)
-- B) Estimate tokens (lenient)
-- C) User choice in settings
+### 2. How to handle token counting failures?
+**Decision:** ✅ RESOLVED per FR-5.2.1
 
-**Recommendation:** B with warning notification.
-**Status:** To be decided during implementation.
+**Implementation:**
+- Display error message to user
+- Provide option to retry token counting
+- Do NOT proceed with fallback counting methods
+- Do NOT use approximate/estimated counting (unsafe)
+
+**Rationale:** Fallback counting would be inaccurate and could lead to context limit violations. User must be involved to resolve the issue.
+
+### ✅ RESOLVED: Automatic Summarization Failures
+**Decision:** Per FR-5.1.1
+
+**Implementation:**
+- Log error with full context
+- Display error notification to user
+- Provide option to retry summarization manually
+- Do NOT proceed with sending full conversation history (would exceed context limits)
+- Prevent further AI requests until compression succeeds or user acknowledges the risk
+
+**Rationale:** When auto-compression triggers (95% threshold), conversation is already near context limits. Sending full history after compression failure would almost certainly cause AI provider errors.
 
 ### 3. Should summaries be editable by users?
 **Consideration:** Users may want to correct or enhance summaries.
@@ -1458,12 +1468,25 @@ describe('Compression Integration', () => {
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 3.0
 **Last Updated:** 2025-11-16
-**Status:** Token Counting Strategy Finalized - Ready for Implementation
+**Status:** Aligned with Requirements v1.5 - Ready for Implementation
+
+**Major Changes in v3.0:**
+- **Token counting**: Removed hybrid approach; all counting is now local-only using tiktoken o200k_base
+  - API response tokens may be recorded for monitoring but NOT used for compression decisions
+  - Compression decisions require pre-request token counts (timing issue with hybrid approach)
+  - API response tokens are cumulative, not per-message (granularity issue)
+- **Error handling**: Removed all unsafe fallback behaviors
+  - Summarization failures: No fallback to full history; show error and retry option
+  - Token counting failures: No approximate counting; show error and retry option
+- **Architecture diagram**: Updated to show single tokenizer (tiktoken) instead of multiple APIs
+- **Testing**: Updated tests to reflect local-only token counting
+- **Manual compression**: Added slash command (/summarize) as trigger option
+- **Configuration**: Clarified that threshold and retention defaults are SHOULD (recommendations), configurability is MUST
 
 **Major Changes in v2.0:**
-- Simplified token counting to hybrid approach (recorded + tiktoken o200k_base fallback)
+- Simplified token counting to hybrid approach (recorded + tiktoken o200k_base fallback) [DEPRECATED]
 - Removed provider-specific tokenizer implementations (Anthropic API, Gemini API)
 - Removed `tokenizerType` from ModelConfigRegistry (no longer needed)
 - Added `CONVERSATION_HISTORY_COMPRESSION_TOKEN_COUNTING_STRATEGY.md` for decision rationale
