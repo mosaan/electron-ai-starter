@@ -19,6 +19,7 @@ interface SessionManagerContextValue {
   updateSession: (sessionId: string, updates: SessionUpdates) => Promise<void>
   deleteSession: (sessionId: string) => Promise<void>
   refreshSessions: () => Promise<void>
+  refreshCurrentSession: () => Promise<void>
 
   // Model selection for current session
   modelSelection: AIModelSelection | null
@@ -51,6 +52,13 @@ export function SessionManagerProvider({ children }: SessionManagerProviderProps
       logger.error('Error loading sessions:', error)
     }
   }, [])
+
+  // Refresh current session details (messages, compression summaries, etc.)
+  const refreshCurrentSession = useCallback(async () => {
+    if (currentSessionId) {
+      await loadCurrentSession(currentSessionId)
+    }
+  }, [currentSessionId, loadCurrentSession])
 
   // Load current session details
   const loadCurrentSession = useCallback(async (sessionId: string) => {
@@ -259,6 +267,7 @@ export function SessionManagerProvider({ children }: SessionManagerProviderProps
     updateSession,
     deleteSession,
     refreshSessions,
+    refreshCurrentSession,
     modelSelection,
     setModelSelection
   }

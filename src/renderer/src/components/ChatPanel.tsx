@@ -17,7 +17,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
-  const { currentSession, currentSessionId, modelSelection, setModelSelection, updateSession, refreshSessions } = useSessionManager()
+  const { currentSession, currentSessionId, modelSelection, setModelSelection, updateSession, refreshSessions, refreshCurrentSession } = useSessionManager()
   const [hasProviderConfigs, setHasProviderConfigs] = useState<boolean>(true)
   const [hasAvailableModels, setHasAvailableModels] = useState<boolean>(true)
   const [compressionNeeded, setCompressionNeeded] = useState<boolean>(false)
@@ -121,13 +121,14 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
   ])
 
   // Handle compression completion
-  const handleCompressionComplete = (result: CompressionResult): void => {
+  const handleCompressionComplete = async (result: CompressionResult): Promise<void> => {
     setShowCompressionDialog(false)
 
     if (result.compressed) {
       logger.info('Compression completed successfully', { result })
-      // Refresh the session to show updated messages
-      refreshSessions()
+      // Refresh the session to show updated messages and compression summaries
+      await refreshSessions()
+      await refreshCurrentSession()
     }
   }
 
@@ -240,7 +241,10 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
                   chatSessionId={currentSession?.id}
                   initialMessages={currentSession?.messages}
                   currentSession={currentSession}
-                  onMessageCompleted={refreshSessions}
+                  onMessageCompleted={async () => {
+                    await refreshSessions()
+                    await refreshCurrentSession()
+                  }}
                 >
                   <Thread />
                 </AIRuntimeProvider>
