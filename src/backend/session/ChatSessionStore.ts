@@ -5,7 +5,8 @@ import {
   chatMessages,
   messageParts,
   toolInvocations,
-  settings
+  settings,
+  sessionSnapshots
 } from '../db/schema'
 import {
   type ChatSessionRow,
@@ -593,5 +594,166 @@ export class ChatSessionStore {
         target: settings.key,
         set: { value: sessionId as any }
       })
+  }
+
+  // Compression-related methods
+
+  /**
+   * Create a snapshot of conversation history (summary)
+   */
+  async createSnapshot(params: {
+    sessionId: string
+    kind: 'summary'
+    content: any
+    messageCutoffId: string
+    tokenCount: number
+  }): Promise<string> {
+    const id = randomUUID()
+    const now = Date.now()
+
+    await this.db.insert(sessionSnapshots).values({
+      id,
+      sessionId: params.sessionId,
+      kind: params.kind,
+      contentJson: JSON.stringify(params.content),
+      messageCutoffId: params.messageCutoffId,
+      tokenCount: params.tokenCount,
+      createdAt: now,
+      updatedAt: now
+    })
+
+    return id
+  }
+
+  /**
+   * Get the latest snapshot for a session
+   */
+  async getLatestSnapshot(
+    sessionId: string,
+    kind: 'summary'
+  ): Promise<{
+    id: string
+    content: any
+    messageCutoffId: string
+    tokenCount: number
+    createdAt: number
+  } | null> {
+    const result = await this.db
+      .select()
+      .from(sessionSnapshots)
+      .where(and(eq(sessionSnapshots.sessionId, sessionId), eq(sessionSnapshots.kind, kind)))
+      .orderBy(desc(sessionSnapshots.createdAt))
+      .limit(1)
+
+    if (!result || result.length === 0) {
+      return null
+    }
+
+    const snapshot = result[0]
+    return {
+      id: snapshot.id,
+      content: JSON.parse(snapshot.contentJson),
+      messageCutoffId: snapshot.messageCutoffId,
+      tokenCount: snapshot.tokenCount,
+      createdAt: snapshot.createdAt
+    }
+  }
+
+  /**
+   * Get all snapshots for a session
+   */
+  async getSnapshots(sessionId: string): Promise<
+    Array<{
+      id: string
+      kind: string
+      content: any
+      messageCutoffId: string
+      tokenCount: number
+      createdAt: number
+    }>
+  > {
+    const result = await this.db
+      .select()
+      .from(sessionSnapshots)
+      .where(eq(sessionSnapshots.sessionId, sessionId))
+      .orderBy(desc(sessionSnapshots.createdAt))
+
+    return result.map((snapshot) => ({
+      id: snapshot.id,
+      kind: snapshot.kind,
+      content: JSON.parse(snapshot.contentJson),
+      messageCutoffId: snapshot.messageCutoffId,
+      tokenCount: snapshot.tokenCount,
+      createdAt: snapshot.createdAt
+    }))
+  }
+
+  /**
+   * Update token counts for a message
+   */
+  async updateMessageTokens(
+    messageId: string,
+    inputTokens: number,
+    outputTokens: number
+  ): Promise<void> {
+    await this.db
+      .update(chatMessages)
+      .set({
+        inputTokens,
+        outputTokens
+      })
+      .where(eq(chatMessages.id, messageId))
+  }
+
+  /**
+   * Build AI context with summary + recent messages after cutoff
+   * Returns messages in format suitable for AI consumption
+   */
+  async buildAIContext(sessionId: string): Promise<ChatMessageWithParts[]> {
+    // Get latest summary snapshot
+    const snapshot = await this.getLatestSnapshot(sessionId, 'summary')
+
+    // Get all messages for the session
+    const session = await this.getSession(sessionId)
+    if (!session) {
+      return []
+    }
+
+    // If no snapshot, return all messages
+    if (!snapshot) {
+      return session.messages
+    }
+
+    // Find the index of the cutoff message
+    const cutoffIndex = session.messages.findIndex((msg) => msg.id === snapshot.messageCutoffId)
+
+    if (cutoffIndex === -1) {
+      // Cutoff message not found, return all messages
+      return session.messages
+    }
+
+    // Build context: summary message + messages after cutoff
+    const summaryMessage: ChatMessageWithParts = {
+      id: `summary-${snapshot.id}`,
+      sessionId,
+      role: 'system',
+      state: 'completed',
+      sequence: -1, // Indicate this is a synthetic message
+      createdAt: this.unixToISO(snapshot.createdAt),
+      parts: [
+        {
+          kind: 'text',
+          id: `summary-part-${snapshot.id}`,
+          content:
+            typeof snapshot.content === 'string' ? snapshot.content : JSON.stringify(snapshot.content),
+          createdAt: this.unixToISO(snapshot.createdAt)
+        }
+      ]
+    }
+
+    // Messages after the cutoff (not including the cutoff message itself)
+    const recentMessages = session.messages.slice(cutoffIndex + 1)
+
+    return [summaryMessage, ...recentMessages]
   }
 }

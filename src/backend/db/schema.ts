@@ -1,4 +1,4 @@
-import { text, sqliteTable, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { text, sqliteTable, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm'
 
 // Settings table for app configuration (key-value pairs with JSON values)
@@ -185,3 +185,26 @@ export const sessionSnapshots = sqliteTable(
 
 export type SelectSessionSnapshot = InferSelectModel<typeof sessionSnapshots>
 export type InsertSessionSnapshot = InferInsertModel<typeof sessionSnapshots>
+
+// Model Configurations table for AI model metadata
+export const modelConfigs = sqliteTable(
+  'model_configs',
+  {
+    id: text('id').notNull().primaryKey(), // "provider:model"
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    maxInputTokens: integer('max_input_tokens').notNull(),
+    maxOutputTokens: integer('max_output_tokens').notNull(),
+    defaultCompressionThreshold: real('default_compression_threshold').notNull().default(0.95),
+    recommendedRetentionTokens: integer('recommended_retention_tokens')
+      .notNull()
+      .default(1000),
+    source: text('source').notNull(), // 'api' | 'manual' | 'default'
+    lastUpdated: integer('last_updated', { mode: 'timestamp' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
+  },
+  (table) => [index('idx_model_configs_provider').on(table.provider)]
+)
+
+export type SelectModelConfig = InferSelectModel<typeof modelConfigs>
+export type InsertModelConfig = InferInsertModel<typeof modelConfigs>

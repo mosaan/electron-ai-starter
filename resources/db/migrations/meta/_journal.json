@@ -43,6 +43,13 @@
       "when": 1763050000000,
       "tag": "0005_remove_unique_tool_call_id_index",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1763348070325,
+      "tag": "0006_lonely_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }
