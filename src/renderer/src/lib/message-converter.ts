@@ -132,6 +132,10 @@ export function insertCompressionMarkers(
 
   if (cutoffIndex === -1) {
     // Cutoff message not found, return original messages
+    console.warn('[insertCompressionMarkers] Cutoff message not found', {
+      messageCutoffId: latestSummary.messageCutoffId,
+      availableMessageIds: threadMessages.map(m => m.id)
+    })
     return threadMessages
   }
 
@@ -141,7 +145,7 @@ export function insertCompressionMarkers(
     role: 'system',
     content: [{
       type: 'text',
-      text: `[Conversation history compressed - ${latestSummary.tokenCount} tokens]`
+      text: `📦 Conversation history compressed (${latestSummary.tokenCount} tokens)`
     }],
     createdAt: new Date(latestSummary.createdAt),
     metadata: {

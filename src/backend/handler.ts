@@ -440,6 +440,12 @@ export class Handler {
         createdAt: new Date(s.createdAt).toISOString()
       }))
 
+    logger.info('[getChatSession] Compression summaries', {
+      sessionId,
+      summaryCount: summaries.length,
+      messageCutoffIds: summaries.map(s => s.messageCutoffId)
+    })
+
     return ok({
       ...session,
       compressionSummaries: summaries

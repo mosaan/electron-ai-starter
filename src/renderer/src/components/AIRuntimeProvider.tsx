@@ -199,8 +199,9 @@ export function AIRuntimeProvider({ children, modelSelection, chatSessionId, ini
 
         // Insert compression markers if we have summaries
         if (currentSession?.compressionSummaries && currentSession.compressionSummaries.length > 0) {
+          logger.info(`[History] Found ${currentSession.compressionSummaries.length} compression summaries`)
           threadMessages = insertCompressionMarkers(threadMessages, currentSession.compressionSummaries)
-          logger.info(`[History] Inserted ${currentSession.compressionSummaries.length} compression markers`)
+          logger.info(`[History] Inserted compression markers`)
         }
 
         // Import messages into runtime
