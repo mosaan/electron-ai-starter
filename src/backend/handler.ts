@@ -424,7 +424,26 @@ export class Handler {
 
   async getChatSession(sessionId: string): Promise<Result<ChatSessionWithMessages | null>> {
     const session = await this._sessionStore.getSession(sessionId)
-    return ok(session)
+    if (!session) {
+      return ok(null)
+    }
+
+    // Get compression summaries for this session
+    const snapshots = await this._sessionStore.getSnapshots(sessionId)
+    const summaries = snapshots
+      .filter((s) => s.kind === 'summary')
+      .map((s) => ({
+        id: s.id,
+        content: typeof s.content === 'string' ? s.content : JSON.stringify(s.content),
+        messageCutoffId: s.messageCutoffId,
+        tokenCount: s.tokenCount,
+        createdAt: new Date(s.createdAt).toISOString()
+      }))
+
+    return ok({
+      ...session,
+      compressionSummaries: summaries
+    })
   }
 
   async listChatSessions(options?: ListSessionsOptions): Promise<Result<ChatSessionRow[]>> {

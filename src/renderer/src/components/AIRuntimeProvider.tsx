@@ -4,19 +4,20 @@ import { ReactNode, useEffect, useCallback, useMemo, useRef } from 'react'
 import { logger } from '@renderer/lib/logger'
 import { streamText } from '@renderer/lib/ai'
 import type { AIModelSelection } from '@common/types'
-import type { AddMessageRequest, ChatMessageWithParts } from '@common/chat-types'
+import type { AddMessageRequest, ChatMessageWithParts, ChatSessionWithMessages } from '@common/chat-types'
 import { isOk } from '@common/result'
-import { convertMessagesToThreadFormat } from '@renderer/lib/message-converter'
+import { convertMessagesToThreadFormat, insertCompressionMarkers } from '@renderer/lib/message-converter'
 
 interface AIRuntimeProviderProps {
   children: ReactNode
   modelSelection: AIModelSelection | null
   chatSessionId?: string | null
   initialMessages?: ChatMessageWithParts[]
+  currentSession?: ChatSessionWithMessages | null
   onMessageCompleted?: () => void | Promise<void>
 }
 
-export function AIRuntimeProvider({ children, modelSelection, chatSessionId, initialMessages, onMessageCompleted }: AIRuntimeProviderProps): React.JSX.Element {
+export function AIRuntimeProvider({ children, modelSelection, chatSessionId, initialMessages, currentSession, onMessageCompleted }: AIRuntimeProviderProps): React.JSX.Element {
   // Keep reference to latest onMessageCompleted callback
   const onMessageCompletedRef = useRef(onMessageCompleted)
   useEffect(() => {
@@ -194,7 +195,13 @@ export function AIRuntimeProvider({ children, modelSelection, chatSessionId, ini
 
       try {
         // Convert database messages directly to ThreadMessage format
-        const threadMessages = convertMessagesToThreadFormat(initialMessages)
+        let threadMessages = convertMessagesToThreadFormat(initialMessages)
+
+        // Insert compression markers if we have summaries
+        if (currentSession?.compressionSummaries && currentSession.compressionSummaries.length > 0) {
+          threadMessages = insertCompressionMarkers(threadMessages, currentSession.compressionSummaries)
+          logger.info(`[History] Inserted ${currentSession.compressionSummaries.length} compression markers`)
+        }
 
         // Import messages into runtime
         runtime.threads.main.import(
@@ -212,7 +219,7 @@ export function AIRuntimeProvider({ children, modelSelection, chatSessionId, ini
         ExportedMessageRepository.fromArray([])
       )
     }
-  }, [chatSessionId, initialMessages, runtime])
+  }, [chatSessionId, initialMessages, currentSession?.compressionSummaries, runtime])
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
 }

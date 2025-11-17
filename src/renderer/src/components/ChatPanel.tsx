@@ -239,6 +239,7 @@ export function ChatPanel({ onSettings }: ChatPanelProps): React.JSX.Element {
                   modelSelection={modelSelection}
                   chatSessionId={currentSession?.id}
                   initialMessages={currentSession?.messages}
+                  currentSession={currentSession}
                   onMessageCompleted={refreshSessions}
                 >
                   <Thread />
