@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Server as ServerIcon, Link, Unlink, AlertCircle } from 'lucide-react'
+import { Plus, Edit2, Trash2, Server as ServerIcon, Link, Unlink, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { isOk } from '@common/result'
 import { logger } from '@renderer/lib/logger'
@@ -50,6 +50,8 @@ interface ServerFormData {
 export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element {
   const [servers, setServers] = useState<MCPServerWithStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadingServers, setLoadingServers] = useState<Set<string>>(new Set())
+  const [isSaving, setIsSaving] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
   const [editingServer, setEditingServer] = useState<MCPServerWithStatus | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -188,40 +190,59 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
 
     const serverName = formData.name
     const isEdit = Boolean(editingServer)
+    const serverId = editingServer?.id
 
     setMessage(null)
+    setIsSaving(true)
+
+    // Add server to loading set before closing dialog
+    if (serverId) {
+      setLoadingServers((prev) => new Set(prev).add(serverId))
+    }
+
     handleCloseDialog({ preserveMessage: true })
 
-    if (isEdit) {
-      const result = await window.backend.updateMCPServer(editingServer!.id, serverConfig)
-      await loadServers()
+    try {
+      if (isEdit && serverId) {
+        const result = await window.backend.updateMCPServer(serverId, serverConfig)
+        await loadServers()
 
-      if (isOk(result)) {
-        setMessage({
-          type: 'success',
-          text: `Server "${serverName}" updated successfully`
-        })
+        if (isOk(result)) {
+          setMessage({
+            type: 'success',
+            text: `Server "${serverName}" updated successfully`
+          })
+        } else {
+          logger.error('Failed to update server:', result.error)
+          setMessage({
+            type: 'error',
+            text: `Failed to update server: ${result.error}`
+          })
+        }
       } else {
-        logger.error('Failed to update server:', result.error)
-        setMessage({
-          type: 'error',
-          text: `Failed to update server: ${result.error}`
-        })
+        const result = await window.backend.addMCPServer(serverConfig)
+        await loadServers()
+
+        if (isOk(result)) {
+          setMessage({
+            type: 'success',
+            text: `Server "${serverName}" added successfully`
+          })
+        } else {
+          logger.error('Failed to add server:', result.error)
+          setMessage({
+            type: 'error',
+            text: `Failed to add server: ${result.error}`
+          })
+        }
       }
-    } else {
-      const result = await window.backend.addMCPServer(serverConfig)
-      await loadServers()
-
-      if (isOk(result)) {
-        setMessage({
-          type: 'success',
-          text: `Server "${serverName}" added successfully`
-        })
-      } else {
-        logger.error('Failed to add server:', result.error)
-        setMessage({
-          type: 'error',
-          text: `Failed to add server: ${result.error}`
+    } finally {
+      setIsSaving(false)
+      if (serverId) {
+        setLoadingServers((prev) => {
+          const next = new Set(prev)
+          next.delete(serverId)
+          return next
         })
       }
     }
@@ -256,22 +277,32 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
   }
 
   const handleToggleEnabled = async (server: MCPServerWithStatus): Promise<void> => {
-    const result = await window.backend.updateMCPServer(server.id, {
-      enabled: !server.enabled
-    })
+    setLoadingServers((prev) => new Set(prev).add(server.id))
 
-    await loadServers()
-
-    if (isOk(result)) {
-      setMessage({
-        type: 'success',
-        text: `Server "${server.name}" ${!server.enabled ? 'enabled' : 'disabled'}`
+    try {
+      const result = await window.backend.updateMCPServer(server.id, {
+        enabled: !server.enabled
       })
-    } else {
-      logger.error('Failed to toggle server:', result.error)
-      setMessage({
-        type: 'error',
-        text: `Failed to toggle server: ${result.error}`
+
+      await loadServers()
+
+      if (isOk(result)) {
+        setMessage({
+          type: 'success',
+          text: `Server "${server.name}" ${!server.enabled ? 'enabled' : 'disabled'}`
+        })
+      } else {
+        logger.error('Failed to toggle server:', result.error)
+        setMessage({
+          type: 'error',
+          text: `Failed to toggle server: ${result.error}`
+        })
+      }
+    } finally {
+      setLoadingServers((prev) => {
+        const next = new Set(prev)
+        next.delete(server.id)
+        return next
       })
     }
   }
@@ -447,13 +478,22 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
                         size="sm"
                         onClick={() => handleToggleEnabled(server)}
                         className="min-w-[80px]"
+                        disabled={loadingServers.has(server.id)}
                       >
-                        {server.enabled ? 'Disable' : 'Enable'}
+                        {loadingServers.has(server.id) ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Processing
+                          </>
+                        ) : (
+                          server.enabled ? 'Disable' : 'Enable'
+                        )}
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleOpenDialog(server)}
+                        disabled={loadingServers.has(server.id)}
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -461,6 +501,7 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteServer(server)}
+                        disabled={loadingServers.has(server.id)}
                       >
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
@@ -614,11 +655,18 @@ export function MCPSettings({ className }: MCPSettingsProps): React.JSX.Element 
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleCloseDialog()}>
+            <Button variant="outline" onClick={() => handleCloseDialog()} disabled={isSaving}>
               Cancel
             </Button>
-            <Button onClick={handleSaveServer}>
-              {editingServer ? 'Update Server' : 'Add Server'}
+            <Button onClick={handleSaveServer} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                editingServer ? 'Update Server' : 'Add Server'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

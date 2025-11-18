@@ -181,22 +181,44 @@ export class MCPManager {
       const configs = await this.loadServerConfigs()
       mcpLogger.info(`Loaded ${configs.length} MCP server configuration(s)`)
 
+      // First, set up all server configs and initial status
       for (const config of configs) {
         this.serverConfigs.set(config.id, config)
         // Set initial status as stopped without emitting events before listeners register
         this.setServerStatus(config.id, 'stopped', undefined, { silent: true })
-
-        if (config.enabled) {
-          mcpLogger.info(`Auto-starting enabled server: ${config.name} (${config.id})`)
-          const result = await this.start(config.id)
-          if (result.status === 'error') {
-            mcpLogger.error(`Failed to start server ${config.name}: ${result.error}`)
-            // Continue with other servers even if one fails
-          }
-        }
       }
 
-      mcpLogger.info('MCP Manager initialized successfully')
+      // Collect enabled servers to start
+      const enabledServers = configs.filter(config => config.enabled)
+
+      if (enabledServers.length === 0) {
+        mcpLogger.info('No enabled servers to start')
+        mcpLogger.info('MCP Manager initialized successfully')
+        return
+      }
+
+      mcpLogger.info(`Starting ${enabledServers.length} enabled server(s) in parallel...`)
+
+      // Start all enabled servers in parallel
+      const startPromises = enabledServers.map(async (config) => {
+        mcpLogger.info(`Auto-starting enabled server: ${config.name} (${config.id})`)
+        const result = await this.start(config.id)
+        if (result.status === 'error') {
+          mcpLogger.error(`Failed to start server ${config.name}: ${result.error}`)
+        } else {
+          mcpLogger.info(`Successfully started server: ${config.name}`)
+        }
+        return { config, result }
+      })
+
+      // Wait for all servers to finish starting (success or failure)
+      const results = await Promise.allSettled(startPromises)
+
+      // Log summary
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.result.status === 'ok').length
+      const failed = enabledServers.length - successful
+
+      mcpLogger.info(`MCP Manager initialized: ${successful} server(s) started, ${failed} failed`)
     } catch (err) {
       // Log error but don't throw - allow backend process to continue
       mcpLogger.error('Failed to initialize MCP Manager', err)
