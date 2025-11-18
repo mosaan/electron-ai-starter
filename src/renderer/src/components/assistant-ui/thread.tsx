@@ -175,7 +175,8 @@ const UserActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="flex gap-1 col-start-2 row-start-2 -mr-1 justify-end"
+      autohideFloat="single-branch"
+      className="text-muted-foreground flex gap-1 col-start-2 row-start-2 -mr-1 justify-end data-[floating]:bg-background data-[floating]:absolute data-[floating]:rounded-md data-[floating]:border data-[floating]:p-1 data-[floating]:shadow-sm"
     >
       <ActionBarPrimitive.Edit asChild>
         <TooltipIconButton tooltip="Edit">
