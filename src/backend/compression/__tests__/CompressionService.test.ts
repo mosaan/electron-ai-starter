@@ -6,6 +6,15 @@ import { ChatSessionStore } from '@backend/session/ChatSessionStore'
 import { ModelConfigService, type ModelConfig } from '../ModelConfigService'
 import { createTestDatabaseWithChatTables } from '../../../../tests/backend/database-helper'
 import type { ChatMessageWithParts } from '@common/chat-types'
+import { getSetting } from '@backend/settings'
+
+// Mock the settings module
+vi.mock('@backend/settings', () => ({
+  getSetting: vi.fn(),
+  setSetting: vi.fn(),
+  getAllSettings: vi.fn(),
+  clearSetting: vi.fn()
+}))
 
 describe('CompressionService', () => {
   let service: CompressionService
@@ -32,6 +41,9 @@ describe('CompressionService', () => {
     modelConfigService = {
       getConfig: vi.fn()
     } as any
+
+    // Mock settings to return undefined (no user settings, use defaults)
+    vi.mocked(getSetting).mockResolvedValue(undefined)
 
     // Create service
     service = new CompressionService(
