@@ -158,10 +158,10 @@ const ComposerAction: FC = () => {
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="grid auto-rows-auto grid-cols-[1fr_auto_auto] grid-rows-[auto_1fr] w-full max-w-[var(--thread-max-width)] py-4">
+    <MessagePrimitive.Root className="grid auto-rows-auto grid-cols-[3.5rem_1fr] grid-rows-[auto_1fr] w-full max-w-[var(--thread-max-width)] py-4">
       <UserActionBar />
 
-      <div className="bg-muted text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5 col-start-2 row-start-2">
+      <div className="bg-muted text-foreground max-w-[calc(var(--thread-max-width)*0.8)] ml-auto break-words rounded-3xl px-5 py-2.5 col-start-2 row-start-2">
         <MessagePrimitive.Content />
       </div>
 
@@ -175,7 +175,7 @@ const UserActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="flex flex-col items-end col-start-1 row-start-2 mr-3 mt-2.5"
+      className="flex flex-col items-end col-start-1 row-start-2 -mr-1 mt-2.5"
     >
       <ActionBarPrimitive.Edit asChild>
         <TooltipIconButton tooltip="Edit">
