@@ -43,114 +43,113 @@ actor "MCPサーバー" as MCPServer
 
 rectangle "Releio システム" {
   package "AIプロバイダー管理" {
-    usecase "UC-01: AIプロバイダー設定を追加する" as UC01
-    usecase "UC-02: AIプロバイダー設定を編集する" as UC02
-    usecase "UC-03: AIプロバイダー設定を削除する" as UC03
-    usecase "UC-04: モデルリストを更新する" as UC04
-    usecase "UC-05: カスタムモデルを追加する" as UC05
+    usecase "UC-PROV-01: AIプロバイダー設定を追加する" as UCPROV01
+    usecase "UC-PROV-02: AIプロバイダー設定を編集する" as UCPROV02
+    usecase "UC-PROV-03: AIプロバイダー設定を削除する" as UCPROV03
+    usecase "UC-PROV-04: モデルリストを更新する" as UCPROV04
+    usecase "UC-PROV-05: カスタムモデルを追加する" as UCPROV05
   }
 
   package "AI会話" {
     package "初期化・検証" {
-      usecase "UC-06A: チャット使用前の検証" as UC06A
-      usecase "UC-06B: モデル選択の永続化" as UC06B
+      usecase "UC-CHAT-01: チャットを開始する" as UCCHAT01
+      usecase "UC-CHAT-02: チャット使用前の検証" as UCCHAT02
+      usecase "UC-CHAT-03: モデル選択の永続化" as UCCHAT03
     }
 
     package "メッセージ送信" {
-      usecase "UC-07: メッセージを送信する" as UC07
-      usecase "UC-07A: 送信前の自動圧縮" as UC07A
-      usecase "UC-07B: メッセージの永続化" as UC07B
+      usecase "UC-CHAT-04: メッセージを送信する" as UCCHAT04
+      usecase "UC-CHAT-05: 送信前の自動圧縮" as UCCHAT05
+      usecase "UC-CHAT-06: メッセージの永続化" as UCCHAT06
     }
 
     package "応答受信" {
-      usecase "UC-08: ストリーミング応答を受信する" as UC08
-      usecase "UC-08A: セッション履歴の復元" as UC08A
-      usecase "UC-08B: ストリーミングの中断" as UC08B
-      usecase "UC-08C: 圧縮マーカーの表示" as UC08C
-    }
-
-    package "ツール呼び出し" {
-      usecase "UC-09: ツール呼び出しを確認する" as UC09
+      usecase "UC-CHAT-07: ストリーミング応答を受信する" as UCCHAT07
+      usecase "UC-CHAT-08: セッション履歴の復元" as UCCHAT08
+      usecase "UC-CHAT-09: ストリーミングの中断" as UCCHAT09
+      usecase "UC-CHAT-10: 圧縮マーカーの表示" as UCCHAT10
     }
 
     package "エラーハンドリング" {
-      usecase "UC-09A: エラー時のメッセージ復元" as UC09A
-      usecase "UC-09B: エラー診断と詳細表示" as UC09B
-      usecase "UC-09C: メッセージ再送信" as UC09C
+      usecase "UC-CHAT-11: エラーハンドリング" as UCCHAT11
+      usecase "UC-CHAT-12: エラー時のメッセージ復元" as UCCHAT12
+      usecase "UC-CHAT-13: エラー診断と詳細表示" as UCCHAT13
+      usecase "UC-CHAT-14: メッセージ再送信" as UCCHAT14
     }
   }
 
   package "チャットセッション管理" {
-    usecase "UC-10: 新しいセッションを作成する" as UC10
-    usecase "UC-11: 過去のセッションを表示する" as UC11
-    usecase "UC-12: セッションを削除する" as UC12
-    usecase "UC-13: セッション履歴を圧縮する" as UC13
+    usecase "UC-SESS-01: 新しいセッションを作成する" as UCSESS01
+    usecase "UC-SESS-02: 過去のセッションを表示する" as UCSESS02
+    usecase "UC-SESS-03: セッションを削除する" as UCSESS03
+    usecase "UC-SESS-04: セッション履歴を圧縮する" as UCSESS04
   }
 
   package "MCPサーバー管理" {
-    usecase "UC-14: MCPサーバーを追加する" as UC14
-    usecase "UC-15: MCPサーバーを有効化/無効化する" as UC15
-    usecase "UC-16: MCPツール一覧を表示する" as UC16
-    usecase "UC-17: MCPリソース一覧を表示する" as UC17
+    usecase "UC-MCP-01: MCPサーバーを追加する" as UCMCP01
+    usecase "UC-MCP-02: MCPサーバーを有効化/無効化する" as UCMCP02
+    usecase "UC-MCP-03: MCPツール一覧を表示する" as UCMCP03
+    usecase "UC-MCP-04: MCPリソース一覧を表示する" as UCMCP04
   }
 
   package "ネットワーク設定" {
-    usecase "UC-18: プロキシ設定を行う" as UC18
-    usecase "UC-19: 証明書を設定する" as UC19
-    usecase "UC-20: 接続テストを実行する" as UC20
+    usecase "UC-NET-01: プロキシ設定を行う" as UCNET01
+    usecase "UC-NET-02: 証明書を設定する" as UCNET02
+    usecase "UC-NET-03: 接続テストを実行する" as UCNET03
   }
 
   package "アプリケーション管理" {
-    usecase "UC-21: 更新を確認する" as UC21
-    usecase "UC-22: 更新をインストールする" as UC22
-    usecase "UC-23: データベースをリセットする" as UC23
+    usecase "UC-APP-01: 更新を確認する" as UCAPP01
+    usecase "UC-APP-02: 更新をインストールする" as UCAPP02
+    usecase "UC-APP-03: データベースをリセットする" as UCAPP03
   }
 }
 
-User --> UC01
-User --> UC02
-User --> UC03
-User --> UC04
-User --> UC05
-User --> UC06A
-User --> UC06B
-User --> UC07
-User --> UC07A
-User --> UC07B
-User --> UC08
-User --> UC08A
-User --> UC08B
-User --> UC08C
-User --> UC09
-User --> UC09A
-User --> UC09B
-User --> UC09C
-User --> UC10
-User --> UC11
-User --> UC12
-User --> UC13
-User --> UC14
-User --> UC15
-User --> UC16
-User --> UC17
-User --> UC18
-User --> UC19
-User --> UC20
-User --> UC21
-User --> UC22
-User --> UC23
+User --> UCPROV01
+User --> UCPROV02
+User --> UCPROV03
+User --> UCPROV04
+User --> UCPROV05
+User --> UCCHAT01
+User --> UCCHAT02
+User --> UCCHAT03
+User --> UCCHAT04
+User --> UCCHAT05
+User --> UCCHAT06
+User --> UCCHAT07
+User --> UCCHAT08
+User --> UCCHAT09
+User --> UCCHAT10
+User --> UCCHAT11
+User --> UCCHAT12
+User --> UCCHAT13
+User --> UCCHAT14
+User --> UCSESS01
+User --> UCSESS02
+User --> UCSESS03
+User --> UCSESS04
+User --> UCMCP01
+User --> UCMCP02
+User --> UCMCP03
+User --> UCMCP04
+User --> UCNET01
+User --> UCNET02
+User --> UCNET03
+User --> UCAPP01
+User --> UCAPP02
+User --> UCAPP03
 
-UC04 --> AIProvider : API呼び出し
-UC06A --> AIProvider : 設定検証
-UC07 --> AIProvider : メッセージ送信
-UC07A --> AIProvider : トークン数確認
-UC08 --> AIProvider : ストリーミング受信
-UC08A --> AIProvider : 履歴読み込み
-UC09 --> MCPServer : ツール実行
-UC14 --> MCPServer : 接続確立
-UC16 --> MCPServer : ツール取得
-UC17 --> MCPServer : リソース取得
-UC20 --> AIProvider : テスト接続
+UCPROV04 --> AIProvider : API呼び出し
+UCCHAT02 --> AIProvider : 設定検証
+UCCHAT04 --> AIProvider : メッセージ送信
+UCCHAT05 --> AIProvider : トークン数確認
+UCCHAT07 --> AIProvider : ストリーミング受信
+UCCHAT08 --> AIProvider : 履歴読み込み
+UCCHAT11 --> MCPServer : ツール実行
+UCMCP01 --> MCPServer : 接続確立
+UCMCP03 --> MCPServer : ツール取得
+UCMCP04 --> MCPServer : リソース取得
+UCNET03 --> AIProvider : テスト接続
 
 @enduml
 ```
@@ -159,38 +158,39 @@ UC20 --> AIProvider : テスト接続
 
 | ID | ユースケース名 | 主要アクター | 説明 |
 |----|-------------|------------|------|
-| UC-01 | AIプロバイダー設定を追加する | ユーザー | 新しいAIプロバイダー（OpenAI、Anthropic等）の接続設定を追加する |
-| UC-02 | AIプロバイダー設定を編集する | ユーザー | 既存のプロバイダー設定（APIキー、エンドポイント等）を変更する |
-| UC-03 | AIプロバイダー設定を削除する | ユーザー | 不要になったプロバイダー設定を削除する |
-| UC-04 | モデルリストを更新する | ユーザー | プロバイダーAPIから最新のモデル一覧を取得する |
-| UC-05 | カスタムモデルを追加する | ユーザー | API経由で取得できないカスタムモデルを手動で追加する |
-| UC-06A | チャット使用前の検証 | ユーザー | プロバイダー設定とモデルの存在を確認し、チャット使用可能性を検証する |
-| UC-06B | モデル選択の永続化 | システム | ユーザーが選択したモデルをlocalStorageに保存し、次回起動時に復元する |
-| UC-07 | メッセージを送信する | ユーザー | AIに対してメッセージを送信する |
-| UC-07A | 送信前の自動圧縮 | システム | メッセージ送信前にトークン制限をチェックし、必要に応じて会話履歴を自動圧縮する |
-| UC-07B | メッセージの永続化 | システム | ユーザーメッセージとAI応答をデータベースに保存する |
-| UC-08 | ストリーミング応答を受信する | ユーザー | AIからのストリーミング形式の応答をリアルタイムで受信する |
-| UC-08A | セッション履歴の復元 | システム | 過去のチャットセッションのメッセージ履歴を読み込み、画面に表示する |
-| UC-08B | ストリーミングの中断 | ユーザー | AI応答のストリーミング中に生成を中断する |
-| UC-08C | 圧縮マーカーの表示 | システム | 会話履歴が圧縮された箇所にマーカーを表示し、要約内容を確認できるようにする |
-| UC-09 | ツール呼び出しを確認する | ユーザー | AIがMCPツールを実行する際の詳細情報を確認する |
-| UC-09A | エラー時のメッセージ復元 | システム | メッセージ送信が失敗した場合、失敗したメッセージを入力フィールドに自動復元する |
-| UC-09B | エラー診断と詳細表示 | ユーザー | エラーの種類を分類し、詳細情報と推奨対処法を表示する |
-| UC-09C | メッセージ再送信 | ユーザー | 失敗したメッセージを編集または修正して再送信する |
-| UC-10 | 新しいセッションを作成する | ユーザー | 新しいチャット会話セッションを開始する |
-| UC-11 | 過去のセッションを表示する | ユーザー | 保存された過去のチャットセッションを一覧表示・選択する |
-| UC-12 | セッションを削除する | ユーザー | 不要なチャットセッションを削除する |
-| UC-13 | セッション履歴を圧縮する | ユーザー | 長い会話履歴をトークン制限内に収めるため圧縮する |
-| UC-14 | MCPサーバーを追加する | ユーザー | 新しいMCPサーバー（ファイルシステム、GitHub等）を追加する |
-| UC-15 | MCPサーバーを有効化/無効化する | ユーザー | MCPサーバーの起動状態を切り替える |
-| UC-16 | MCPツール一覧を表示する | ユーザー | 接続されたMCPサーバーが提供するツール一覧を表示する |
-| UC-17 | MCPリソース一覧を表示する | ユーザー | 接続されたMCPサーバーが提供するリソース一覧を表示する |
-| UC-18 | プロキシ設定を行う | ユーザー | 企業ネットワーク環境でのプロキシサーバー設定を行う |
-| UC-19 | 証明書を設定する | ユーザー | カスタムCA証明書や証明書検証設定を行う |
-| UC-20 | 接続テストを実行する | ユーザー | 設定したネットワーク構成でAIプロバイダーへの接続をテストする |
-| UC-21 | 更新を確認する | ユーザー | アプリケーションの新しいバージョンが利用可能か確認する |
-| UC-22 | 更新をインストールする | ユーザー | 新しいバージョンをダウンロード・インストールする |
-| UC-23 | データベースをリセットする | ユーザー | 開発環境でデータベースを初期状態にリセットする |
+| UC-PROV-01 | AIプロバイダー設定を追加する | ユーザー | 新しいAIプロバイダー（OpenAI、Anthropic等）の接続設定を追加する |
+| UC-PROV-02 | AIプロバイダー設定を編集する | ユーザー | 既存のプロバイダー設定（APIキー、エンドポイント等）を変更する |
+| UC-PROV-03 | AIプロバイダー設定を削除する | ユーザー | 不要になったプロバイダー設定を削除する |
+| UC-PROV-04 | モデルリストを更新する | ユーザー | プロバイダーAPIから最新のモデル一覧を取得する |
+| UC-PROV-05 | カスタムモデルを追加する | ユーザー | API経由で取得できないカスタムモデルを手動で追加する |
+| UC-CHAT-01 | チャットを開始する | ユーザー | プロバイダーとモデルを選択してチャットセッションを開始する |
+| UC-CHAT-02 | チャット使用前の検証 | ユーザー | プロバイダー設定とモデルの存在を確認し、チャット使用可能性を検証する |
+| UC-CHAT-03 | モデル選択の永続化 | システム | ユーザーが選択したモデルをlocalStorageに保存し、次回起動時に復元する |
+| UC-CHAT-04 | メッセージを送信する | ユーザー | AIに対してメッセージを送信する |
+| UC-CHAT-05 | 送信前の自動圧縮 | システム | メッセージ送信前にトークン制限をチェックし、必要に応じて会話履歴を自動圧縮する |
+| UC-CHAT-06 | メッセージの永続化 | システム | ユーザーメッセージとAI応答をデータベースに保存する |
+| UC-CHAT-07 | ストリーミング応答を受信する | ユーザー | AIからのストリーミング形式の応答をリアルタイムで受信する |
+| UC-CHAT-08 | セッション履歴の復元 | システム | 過去のチャットセッションのメッセージ履歴を読み込み、画面に表示する |
+| UC-CHAT-09 | ストリーミングの中断 | ユーザー | AI応答のストリーミング中に生成を中断する |
+| UC-CHAT-10 | 圧縮マーカーの表示 | システム | 会話履歴が圧縮された箇所にマーカーを表示し、要約内容を確認できるようにする |
+| UC-CHAT-11 | エラーハンドリング | ユーザー | AIがMCPツールを実行する際の詳細情報を確認する |
+| UC-CHAT-12 | エラー時のメッセージ復元 | システム | メッセージ送信が失敗した場合、失敗したメッセージを入力フィールドに自動復元する |
+| UC-CHAT-13 | エラー診断と詳細表示 | ユーザー | エラーの種類を分類し、詳細情報と推奨対処法を表示する |
+| UC-CHAT-14 | メッセージ再送信 | ユーザー | 失敗したメッセージを編集または修正して再送信する |
+| UC-SESS-01 | 新しいセッションを作成する | ユーザー | 新しいチャット会話セッションを開始する |
+| UC-SESS-02 | 過去のセッションを表示する | ユーザー | 保存された過去のチャットセッションを一覧表示・選択する |
+| UC-SESS-03 | セッションを削除する | ユーザー | 不要なチャットセッションを削除する |
+| UC-SESS-04 | セッション履歴を圧縮する | ユーザー | 長い会話履歴をトークン制限内に収めるため圧縮する |
+| UC-MCP-01 | MCPサーバーを追加する | ユーザー | 新しいMCPサーバー（ファイルシステム、GitHub等）を追加する |
+| UC-MCP-02 | MCPサーバーを有効化/無効化する | ユーザー | MCPサーバーの起動状態を切り替える |
+| UC-MCP-03 | MCPツール一覧を表示する | ユーザー | 接続されたMCPサーバーが提供するツール一覧を表示する |
+| UC-MCP-04 | MCPリソース一覧を表示する | ユーザー | 接続されたMCPサーバーが提供するリソース一覧を表示する |
+| UC-NET-01 | プロキシ設定を行う | ユーザー | 企業ネットワーク環境でのプロキシサーバー設定を行う |
+| UC-NET-02 | 証明書を設定する | ユーザー | カスタムCA証明書や証明書検証設定を行う |
+| UC-NET-03 | 接続テストを実行する | ユーザー | 設定したネットワーク構成でAIプロバイダーへの接続をテストする |
+| UC-APP-01 | 更新を確認する | ユーザー | アプリケーションの新しいバージョンが利用可能か確認する |
+| UC-APP-02 | 更新をインストールする | ユーザー | 新しいバージョンをダウンロード・インストールする |
+| UC-APP-03 | データベースをリセットする | ユーザー | 開発環境でデータベースを初期状態にリセットする |
 
 ## 4. システム境界とアクター
 
@@ -233,12 +233,12 @@ UC20 --> AIProvider : テスト接続
 
 個々のユースケースの詳細な要件記述（EARSフォーマット）は、以下のドキュメントを参照してください：
 
-- [UC-01 〜 UC-05: AIプロバイダー管理要件](./REQUIREMENTS_AI_PROVIDER.md)
-- [UC-06 〜 UC-09: AI会話要件](./REQUIREMENTS_AI_CHAT.md)
-- [UC-10 〜 UC-13: チャットセッション管理要件](./REQUIREMENTS_SESSION.md)
-- [UC-14 〜 UC-17: MCPサーバー管理要件](./REQUIREMENTS_MCP.md)
-- [UC-18 〜 UC-20: ネットワーク設定要件](./REQUIREMENTS_NETWORK.md)
-- [UC-21 〜 UC-23: アプリケーション管理要件](./REQUIREMENTS_APP_MGMT.md)
+- [UC-PROV-01 〜 UC-PROV-05: AIプロバイダー管理要件](./REQUIREMENTS_AI_PROVIDER.md)
+- [UC-CHAT-01 〜 UC-CHAT-14: AI会話要件](./REQUIREMENTS_AI_CHAT.md)
+- [UC-SESS-01 〜 UC-SESS-04: チャットセッション管理要件](./REQUIREMENTS_SESSION.md)
+- [UC-MCP-01 〜 UC-MCP-04: MCPサーバー管理要件](./REQUIREMENTS_MCP.md)
+- [UC-NET-01 〜 UC-NET-03: ネットワーク設定要件](./REQUIREMENTS_NETWORK.md)
+- [UC-APP-01 〜 UC-APP-03: アプリケーション管理要件](./REQUIREMENTS_APP_MGMT.md)
 
 ## 7. 設計文書への参照
 
