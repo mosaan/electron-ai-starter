@@ -159,7 +159,7 @@ const ComposerAction: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="grid auto-rows-auto grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] relative w-full max-w-[var(--thread-max-width)] py-4">
-      <div className="bg-muted text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5 col-span-2 col-start-2 row-start-1 my-1.5">
+      <div className="bg-muted text-foreground max-w-[calc(var(--thread-max-width)*0.8)] break-words rounded-3xl px-5 py-2.5 col-span-2 col-start-2 row-start-1 my-1.5 ml-auto">
         <MessagePrimitive.Content />
       </div>
 
