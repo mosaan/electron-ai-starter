@@ -559,6 +559,9 @@ export class Handler {
         additionalInput
       )
 
+      // Get detailed token breakdown
+      const breakdown = await this._compressionService.getTokenBreakdown(sessionId)
+
       const tokenUsage: TokenUsageInfo = {
         currentTokens: contextCheck.currentTokenCount,
         maxTokens: contextCheck.contextLimit,
@@ -567,7 +570,16 @@ export class Handler {
         estimatedResponseTokens: contextCheck.estimatedResponseTokens,
         utilizationPercentage: contextCheck.utilizationPercentage,
         thresholdPercentage: (contextCheck.thresholdTokenCount / contextCheck.contextLimit) * 100,
-        needsCompression: contextCheck.needsCompression
+        needsCompression: contextCheck.needsCompression,
+        breakdown: {
+          systemTokens: breakdown.systemTokens,
+          summaryTokens: breakdown.summaryTokens,
+          regularMessageTokens: breakdown.regularMessageTokens,
+          toolTokens: breakdown.toolTokens,
+          currentInputTokens: additionalInput
+            ? this._compressionService['tokenCounter'].countText(additionalInput)
+            : 0
+        }
       }
 
       return ok(tokenUsage)

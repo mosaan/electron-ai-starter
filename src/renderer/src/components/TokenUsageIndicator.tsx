@@ -150,6 +150,44 @@ export function TokenUsageIndicator({ sessionId, modelSelection, currentSession 
               <span className="font-medium text-right text-gray-900 dark:text-gray-100">{tokenUsage.thresholdPercentage.toFixed(0)}%</span>
             </div>
 
+            {tokenUsage.breakdown && (
+              <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-gray-700 dark:text-gray-300 font-semibold mb-1.5 text-xs">Token Breakdown:</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  {tokenUsage.breakdown.systemTokens > 0 && (
+                    <>
+                      <span className="text-gray-600 dark:text-gray-400 pl-2">System messages:</span>
+                      <span className="font-medium text-right text-gray-900 dark:text-gray-100">{formatNumber(tokenUsage.breakdown.systemTokens)}</span>
+                    </>
+                  )}
+                  {tokenUsage.breakdown.summaryTokens > 0 && (
+                    <>
+                      <span className="text-gray-600 dark:text-gray-400 pl-2">Summary:</span>
+                      <span className="font-medium text-right text-gray-900 dark:text-gray-100">{formatNumber(tokenUsage.breakdown.summaryTokens)}</span>
+                    </>
+                  )}
+                  {tokenUsage.breakdown.regularMessageTokens > 0 && (
+                    <>
+                      <span className="text-gray-600 dark:text-gray-400 pl-2">Messages:</span>
+                      <span className="font-medium text-right text-gray-900 dark:text-gray-100">{formatNumber(tokenUsage.breakdown.regularMessageTokens)}</span>
+                    </>
+                  )}
+                  {tokenUsage.breakdown.toolTokens > 0 && (
+                    <>
+                      <span className="text-gray-600 dark:text-gray-400 pl-2">Tool definitions:</span>
+                      <span className="font-medium text-right text-gray-900 dark:text-gray-100">{formatNumber(tokenUsage.breakdown.toolTokens)}</span>
+                    </>
+                  )}
+                  {tokenUsage.breakdown.currentInputTokens > 0 && (
+                    <>
+                      <span className="text-gray-600 dark:text-gray-400 pl-2">Current input:</span>
+                      <span className="font-medium text-right text-gray-900 dark:text-gray-100">{formatNumber(tokenUsage.breakdown.currentInputTokens)}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {tokenUsage.needsCompression && (
               <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-orange-600 dark:text-orange-500 font-medium">

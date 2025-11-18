@@ -343,6 +343,48 @@ export class CompressionService {
   }
 
   /**
+   * Get detailed token usage breakdown for a session
+   */
+  async getTokenBreakdown(sessionId: string): Promise<{
+    systemTokens: number
+    summaryTokens: number
+    regularMessageTokens: number
+    toolTokens: number
+  }> {
+    // Get AI context (includes summary if exists)
+    const contextMessages = await this.sessionStore.buildAIContext(sessionId)
+
+    let systemTokens = 0
+    let summaryTokens = 0
+    let regularMessageTokens = 0
+
+    for (const msg of contextMessages) {
+      if (msg.role === 'system') {
+        const tokens = this.tokenCounter.countMessageTokens(msg)
+        // System messages from compression are identified by their ID pattern
+        if (msg.id.startsWith('summary-')) {
+          summaryTokens += tokens
+        } else {
+          systemTokens += tokens
+        }
+      } else {
+        regularMessageTokens += this.tokenCounter.countMessageTokens(msg)
+      }
+    }
+
+    // Note: Tool tokens calculation would require MCP server info
+    // For now, return 0 as it requires integration with MCP settings
+    const toolTokens = 0
+
+    return {
+      systemTokens,
+      summaryTokens,
+      regularMessageTokens,
+      toolTokens
+    }
+  }
+
+  /**
    * Clean up resources
    */
   dispose(): void {

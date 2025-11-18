@@ -221,6 +221,19 @@ export interface TokenUsageInfo {
   thresholdPercentage: number
   /** Whether compression is needed */
   needsCompression: boolean
+  /** Detailed breakdown of token usage */
+  breakdown?: {
+    /** System message tokens (if any) */
+    systemTokens: number
+    /** Summary tokens (from compression) */
+    summaryTokens: number
+    /** Regular message tokens (after summary cutoff) */
+    regularMessageTokens: number
+    /** Tool use tokens (MCP tool definitions) */
+    toolTokens: number
+    /** Current input tokens (user typing in chat) */
+    currentInputTokens: number
+  }
 }
 
 /**
