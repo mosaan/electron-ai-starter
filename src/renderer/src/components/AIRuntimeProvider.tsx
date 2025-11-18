@@ -30,8 +30,17 @@ export function AIRuntimeProvider({ children, modelSelection, chatSessionId, ini
     sessionId: string | null | undefined
   ): ChatModelAdapter => ({
     async *run({ messages, abortSignal }) {
+      // Filter out compression markers (they're for display only, not for AI)
+      const messagesToSend = messages.filter((message: ThreadMessage) => {
+        // Exclude compression markers (system messages with isCompressionMarker metadata)
+        if (message.role === 'system' && message.metadata?.custom?.isCompressionMarker) {
+          return false
+        }
+        return true
+      })
+
       // Convert Assistant-ui messages to AIMessage format
-      const formattedMessages = messages.map((message: ThreadMessage) => ({
+      const formattedMessages = messagesToSend.map((message: ThreadMessage) => ({
         role: message.role as 'user' | 'assistant' | 'system',
         content: message.content
           .filter((part) => part.type === 'text')
