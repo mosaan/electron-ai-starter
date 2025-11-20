@@ -16,3 +16,7 @@ tmp
 .claude/settings.local.json
 
 .serena
+
+# MCPB Runtime files (downloaded during build)
+/build/runtimes/
+/build/*.zip
