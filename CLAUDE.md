@@ -1,3 +1,8 @@
+# General Guidelines
+
+- Think in English, communicate in Japanese with the user.
+- see: `docs\UP_with_UML\ABOUT_THIS_FOLDER.md`
+
 # ExecPlans
 
 When writing complex features or significant refactors, use an ExecPlan (as described in .agent/PLANS.md) from design to implementation.
@@ -357,24 +362,24 @@ See `docs/FOR_DEVELOPERS.md` for more detailed examples and usage patterns.
 
 ## GitHub CLI (gh) Usage
 
-This repository is forked from `rarexlabs/electron-ai-starter`. When using `gh` commands to manage Issues, PRs, or other GitHub resources:
+This repository is forked from `rarexlabs/releio`. When using `gh` commands to manage Issues, PRs, or other GitHub resources:
 
-- **Always specify the repository explicitly**: `--repo mosaan/electron-ai-starter`
+- **Always specify the repository explicitly**: `--repo mosaan/releio`
 - This ensures commands target your forked repository, not the upstream repository
 
 **Examples**:
 ```bash
 # List issues from your fork
-gh issue list --repo mosaan/electron-ai-starter
+gh issue list --repo mosaan/releio
 
 # View specific issue
-gh issue view 10 --repo mosaan/electron-ai-starter
+gh issue view 10 --repo mosaan/releio
 
 # Create new issue
-gh issue create --repo mosaan/electron-ai-starter --title "Title" --body "Description"
+gh issue create --repo mosaan/releio --title "Title" --body "Description"
 
 # Edit issue
-gh issue edit 10 --repo mosaan/electron-ai-starter --title "New title"
+gh issue edit 10 --repo mosaan/releio --title "New title"
 ```
 
 ## Commit Guidelines

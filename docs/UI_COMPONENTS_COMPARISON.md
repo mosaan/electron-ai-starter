@@ -2,7 +2,7 @@
 
 **日付:** 2025年11月11日
 **ステータス:** 調査完了
-**関連Issue:** [#9 - UIコンポーネントの比較調査](https://github.com/mosaan/electron-ai-starter/issues/9)
+**関連Issue:** [#9 - UIコンポーネントの比較調査](https://github.com/mosaan/releio/issues/9)
 
 ## エグゼクティブサマリー
 

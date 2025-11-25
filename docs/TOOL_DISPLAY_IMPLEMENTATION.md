@@ -2,7 +2,7 @@
 
 **日付:** 2025年11月11日
 **ステータス:** 実装計画策定完了
-**関連Issue:** [#8 - ツール実行履歴をメッセージ履歴としても表示する](https://github.com/mosaan/electron-ai-starter/issues/8)
+**関連Issue:** [#8 - ツール実行履歴をメッセージ履歴としても表示する](https://github.com/mosaan/releio/issues/8)
 
 ## エグゼクティブサマリー
 

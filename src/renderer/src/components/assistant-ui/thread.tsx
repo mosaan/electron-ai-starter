@@ -13,7 +13,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  PencilIcon,
   RefreshCwIcon,
   SendHorizontalIcon,
 } from "lucide-react";
@@ -165,22 +164,6 @@ const UserMessage: FC = () => {
 
       <BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
     </MessagePrimitive.Root>
-  );
-};
-
-const UserActionBar: FC = () => {
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      className="flex flex-col items-end col-start-1 row-start-2 mr-3 mt-2.5"
-    >
-      <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit">
-          <PencilIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Edit>
-    </ActionBarPrimitive.Root>
   );
 };
 
