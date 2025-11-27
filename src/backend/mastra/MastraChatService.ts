@@ -110,6 +110,7 @@ export class MastraChatService {
       })
 
       let assistantText = ''
+      let chunkCount = 0
       const reader = stream.fullStream.getReader()
 
       while (true) {
@@ -125,6 +126,13 @@ export class MastraChatService {
           case 'text-delta':
             if (value.text) {
               assistantText += value.text
+              chunkCount += 1
+              logger.info('[Mastra] Chunk received', {
+                streamId,
+                chunkIndex: chunkCount,
+                chunkLength: value.text.length,
+                totalLength: assistantText.length
+              })
               publishEvent('mastraChatChunk', {
                 type: EventType.Message,
                 payload: { sessionId: session.sessionId, streamId, chunk: value.text }
@@ -188,7 +196,8 @@ export class MastraChatService {
       logger.info('[Mastra] Streaming completed', {
         sessionId: session.sessionId,
         streamId,
-        textLength: assistantText.length
+        textLength: assistantText.length,
+        chunks: chunkCount
       })
     } catch (err) {
       if (isAbortError(err)) {

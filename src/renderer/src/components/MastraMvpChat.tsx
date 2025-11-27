@@ -84,6 +84,10 @@ export function MastraMvpChat({ onBack, onOpenSettings }: MastraMvpChatProps): R
       for await (const chunk of stream) {
         if (chunk.type === 'text') {
           assistantText += chunk.text
+          logger.info('[Mastra][UI] rendering chunk', {
+            len: chunk.text.length,
+            total: assistantText.length
+          })
           setStreamingText(assistantText)
         }
       }
@@ -93,6 +97,10 @@ export function MastraMvpChat({ onBack, onOpenSettings }: MastraMvpChatProps): R
         role: 'assistant',
         content: assistantText || '（応答がありませんでした）'
       }
+
+      logger.info('[Mastra][UI] assistant message finalized', {
+        totalLength: assistantText.length
+      })
 
       setMessages((prev) => [...prev, assistantMessage])
       setStreamingText('')

@@ -71,6 +71,7 @@ async function* receiveStream(
     const payload = appEvent.payload as { sessionId: string; streamId: string; chunk: string }
     if (payload.sessionId !== sessionId || payload.streamId !== streamId) return
     if (payload.chunk) {
+      logger.info('[Mastra][Renderer] chunk received', { streamId, len: payload.chunk.length })
       pendingChunks.push({ type: 'text', text: payload.chunk })
     }
     unblockYieldLoop()
@@ -104,7 +105,10 @@ async function* receiveStream(
     const payload = appEvent.payload as { sessionId: string; streamId: string; text?: string }
     if (payload.sessionId !== sessionId || payload.streamId !== streamId) return
     if (payload.text) {
+      logger.info('[Mastra][Renderer] end received with text', { streamId, len: payload.text.length })
       pendingChunks.push({ type: 'text', text: payload.text })
+    } else {
+      logger.info('[Mastra][Renderer] end received without text', { streamId })
     }
     completed = true
     unblockYieldLoop()
