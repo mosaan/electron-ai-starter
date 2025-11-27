@@ -151,7 +151,7 @@ function App() {
   }
 
   if (currentPage === 'chat') {
-    return <ChatPageWithSessions onSettings={handleSettingsClick} />
+    return <ChatPageWithSessions onSettings={handleSettingsClick} onMastra={handleMastraClick} />
   }
 
   if (currentPage === 'mastra') {
