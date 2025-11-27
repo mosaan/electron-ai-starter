@@ -101,6 +101,34 @@ export class MastraChatService {
       model: selection.model
     })
 
+    // Run streaming asynchronously so the handler can return immediately
+    this.runStreaming({
+      streamId,
+      session,
+      uiMessages,
+      messages,
+      abortController,
+      publishEvent
+    }).catch((err) => {
+      logger.error('[Mastra] Streaming task failed', {
+        streamId,
+        error: err instanceof Error ? err.message : err
+      })
+    })
+
+    return streamId
+  }
+
+  private async runStreaming(params: {
+    streamId: string
+    session: SessionRecord
+    uiMessages: UIMessage[]
+    messages: AIMessage[]
+    abortController: AbortController
+    publishEvent: (channel: string, event: AppEvent) => void
+  }): Promise<void> {
+    const { streamId, session, uiMessages, messages, abortController, publishEvent } = params
+
     try {
       const stream = await this.agent!.stream(uiMessages, {
         format: 'aisdk',
@@ -217,8 +245,6 @@ export class MastraChatService {
     } finally {
       this.streams.delete(streamId)
     }
-
-    return streamId
   }
 
   abortStream(streamId: string): boolean {
