@@ -24,7 +24,8 @@ import type {
   TokenUsageInfo,
   CompressionPreview,
   CompressionResult as CommonCompressionResult,
-  CompressionSummary
+  CompressionSummary,
+  MastraStatus
 } from '@common/types'
 import { ok, error, isOk } from '@common/result'
 import { dirname } from 'path'
@@ -65,6 +66,7 @@ import { CompressionService } from './compression/CompressionService'
 import { TokenCounter } from './compression/TokenCounter'
 import { SummarizationService } from './compression/SummarizationService'
 import { ModelConfigService } from './compression/ModelConfigService'
+import { mastraChatService } from './mastra/MastraChatService'
 
 export class Handler {
   private _rendererConnection: Connection
@@ -236,6 +238,48 @@ export class Handler {
   async testAIProviderConnection(config: AIConfig): Promise<Result<boolean>> {
     const result = await testConnection(config)
     return ok(result)
+  }
+
+  // Mastra handlers
+  async getMastraStatus(): Promise<Result<MastraStatus>> {
+    const status = await mastraChatService.getStatus()
+    return ok(status)
+  }
+
+  async startMastraSession(resourceId?: string): Promise<Result<{ sessionId: string; threadId: string; resourceId?: string }, string>> {
+    try {
+      const session = await mastraChatService.startSession(resourceId)
+      return ok({
+        sessionId: session.sessionId,
+        threadId: session.threadId,
+        resourceId: session.resourceId
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start Mastra session'
+      logger.error('[Mastra] startSession failed', { error: message })
+      return error<string>(message)
+    }
+  }
+
+  async streamMastraText(sessionId: string, messages: AIMessage[]): Promise<Result<string, string>> {
+    try {
+      const streamId = await mastraChatService.streamText(sessionId, messages, (channel: string, event: AppEvent) => {
+        this._rendererConnection.publishEvent(channel, event)
+      })
+      return ok(streamId)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start Mastra stream'
+      logger.error('[Mastra] streamText failed', { error: message })
+      return error<string>(message)
+    }
+  }
+
+  async abortMastraStream(streamId: string): Promise<Result<void, string>> {
+    const aborted = mastraChatService.abortStream(streamId)
+    if (!aborted) {
+      return error<string>('Stream not found')
+    }
+    return ok(undefined)
   }
 
   // AI Settings v2 handlers

@@ -117,6 +117,16 @@ export interface AIModelSelection {
   modelId: string // Which model from that config
 }
 
+export interface MastraSessionInfo {
+  sessionId: string
+  threadId: string
+  resourceId?: string
+}
+
+export type MastraStatus =
+  | { ready: true; provider: AIProvider; model: string }
+  | { ready: false; reason: string }
+
 export class TimeoutError extends Error {
   limitMs: number
 
@@ -312,6 +322,11 @@ export interface RendererBackendAPI {
   abortAIText: (sessionId: string) => Promise<Result<void>>
   getAIModels: (provider: AIProvider) => Promise<Result<string[]>>
   testAIProviderConnection: (config: AIConfig) => Promise<Result<boolean>>
+  // Mastra MVP APIs
+  getMastraStatus: () => Promise<Result<MastraStatus>>
+  startMastraSession: (resourceId?: string) => Promise<Result<MastraSessionInfo, string>>
+  streamMastraText: (sessionId: string, messages: AIMessage[]) => Promise<Result<string, string>>
+  abortMastraStream: (streamId: string) => Promise<Result<void, string>>
   // AI Settings v2 APIs
   getAISettingsV2: () => Promise<Result<AISettingsV2>>
   saveAISettingsV2: (settings: AISettingsV2) => Promise<Result<void>>

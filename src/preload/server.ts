@@ -26,6 +26,11 @@ export class Server {
     abortAIText: (...args) => this._invoke('abortAIText', ...args),
     getAIModels: (...args) => this._invoke('getAIModels', ...args),
     testAIProviderConnection: (...args) => this._invoke('testAIProviderConnection', ...args),
+    // Mastra MVP
+    getMastraStatus: (...args) => this._invoke('getMastraStatus', ...args),
+    startMastraSession: (...args) => this._invoke('startMastraSession', ...args),
+    streamMastraText: (...args) => this._invoke('streamMastraText', ...args),
+    abortMastraStream: (...args) => this._invoke('abortMastraStream', ...args),
     // AI Settings v2 APIs
     getAISettingsV2: (...args) => this._invoke('getAISettingsV2', ...args),
     saveAISettingsV2: (...args) => this._invoke('saveAISettingsV2', ...args),

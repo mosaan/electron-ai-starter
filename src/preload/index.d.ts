@@ -6,6 +6,8 @@ export type {
   AIMessage,
   AISettings,
   AIConfig,
+  MastraStatus,
+  MastraSessionInfo,
   UpdateCheckResult,
   UpdateInfo
 } from '../common/types'
